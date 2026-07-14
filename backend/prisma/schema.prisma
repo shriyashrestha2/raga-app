@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CAPTAIN
+  DANCER
+}
+
+enum UpdateTag {
+  ANNOUNCEMENT
+  COSTUME_LOGISTICS
+  CHOREO_NOTES
+}
+
+enum RsvpResponse {
+  YES
+  NO
+}
+
+enum CalendarCategory {
+  FINANCE
+  PRACTICE
+  PRODUCTION
+  SOCIAL
+  PERFORMANCE
+}
+
+model User {
+  id         String   @id @default(cuid())
+  name       String
+  initials   String
+  role       Role
+  telegramId String?  @unique
+  createdAt  DateTime @default(now())
+
+  updates Update[]
+  rsvps   Rsvp[]
+  videos  Video[]
+}
+
+model Update {
+  id                  String    @id @default(cuid())
+  author              User      @relation(fields: [authorId], references: [id])
+  authorId            String
+  tag                 UpdateTag
+  content             String
+  pinned              Boolean   @default(false)
+  telegramMessageId    String?  @unique
+  createdAt           DateTime  @default(now())
+}
+
+model Practice {
+  id        String   @id @default(cuid())
+  date      DateTime
+  location  String
+  focus     String
+  reminder  String?
+  createdAt DateTime @default(now())
+
+  rsvps Rsvp[]
+}
+
+model Rsvp {
+  id         String       @id @default(cuid())
+  practice   Practice     @relation(fields: [practiceId], references: [id])
+  practiceId String
+  user       User         @relation(fields: [userId], references: [id])
+  userId     String
+  response   RsvpResponse
+  // Required whenever response == NO; enforced at the API layer since
+  // Prisma/SQLite can't express a conditional NOT NULL constraint.
+  reason     String?
+  updatedAt  DateTime     @updatedAt
+
+  @@unique([practiceId, userId])
+}
+
+model Video {
+  id           String   @id @default(cuid())
+  title        String
+  set          String
+  date         DateTime
+  url          String
+  thumbnail    String?
+  duration     String?
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
+  uploadedById String
+  createdAt    DateTime @default(now())
+}
+
+model CalendarEvent {
+  id       String           @id @default(cuid())
+  date     DateTime
+  category CalendarCategory
+  label    String
+}

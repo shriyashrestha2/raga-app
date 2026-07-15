@@ -124,6 +124,7 @@ extension CalendarCategory {
         case .social: return .yellow
         case .performance: return Color("AccentColor")
         case .logistics: return .orange
+        case .reminder: return .teal
         }
     }
 }

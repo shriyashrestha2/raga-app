@@ -57,6 +57,7 @@ enum CalendarCategory: String, Codable, CaseIterable {
     case social = "SOCIAL"
     case performance = "PERFORMANCE"
     case logistics = "LOGISTICS"
+    case reminder = "REMINDER"
 
     var label: String {
         switch self {
@@ -66,6 +67,7 @@ enum CalendarCategory: String, Codable, CaseIterable {
         case .social: return "Social"
         case .performance: return "Performance"
         case .logistics: return "Logistics"
+        case .reminder: return "Reminder"
         }
     }
 }
@@ -245,4 +247,21 @@ struct AttendanceRecord: Codable, Identifiable {
 struct AttendanceForEvent: Codable {
     let canEdit: Bool
     let records: [AttendanceRecord]
+}
+
+// MARK: - Personal reminders (Roundup tab, all roles)
+
+struct ReminderItem: Codable, Identifiable {
+    let id: String
+    let topicId: String
+    let title: String
+    let description: String?
+    let date: Date
+    let addedToCalendar: Bool
+}
+
+struct ReminderTopic: Codable, Identifiable {
+    let id: String
+    let name: String
+    let reminders: [ReminderItem]
 }

@@ -83,9 +83,18 @@ export function categoryOwnerRole(category: string): RoleName | null {
   return null;
 }
 
-export function canEditCalendarEvent(role: RoleName, category: string): boolean {
+/** `createdById`/`currentUserId` are only relevant for categories with no
+ * role owner (currently just REMINDER, personal-reminder-linked events) —
+ * the creator can always edit/delete their own event regardless of role. */
+export function canEditCalendarEvent(
+  role: RoleName,
+  category: string,
+  createdById?: string | null,
+  currentUserId?: string
+): boolean {
   if (role === "CAPTAIN") return true;
-  return categoryOwnerRole(category) === role;
+  if (categoryOwnerRole(category) === role) return true;
+  return createdById != null && createdById === currentUserId;
 }
 
 export function canEditAttendance(role: RoleName, eventCategory: string): boolean {

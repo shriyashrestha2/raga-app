@@ -19,6 +19,7 @@ targets:
       path: RagaApp/Info.plist
       properties:
         UILaunchScreen: {}
+        UIUserInterfaceStyle: Dark
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
         NSAppTransportSecurity:

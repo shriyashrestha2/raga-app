@@ -81,6 +81,15 @@ final class AppState: ObservableObject {
         }
     }
 
+    func loadCalendarEvents() async {
+        guard let userId = currentUserId else { return }
+        do {
+            calendarEvents = try await APIClient.shared.fetchCalendarEvents(userId: userId)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func loadVideos() async {
         guard let userId = currentUserId else { return }
         do {

@@ -11,8 +11,9 @@ const CATEGORIES = ["FINANCE", "PRACTICE", "PRODUCTION", "SOCIAL", "PERFORMANCE"
 
 calendarRouter.get("/", async (req, res) => {
   const role = req.currentUser!.role;
+  const currentUserId = req.currentUser!.id;
   const events = await prisma.calendarEvent.findMany({ orderBy: { date: "asc" } });
-  res.json(events.map((e) => ({ ...e, canEdit: canEditCalendarEvent(role, e.category) })));
+  res.json(events.map((e) => ({ ...e, canEdit: canEditCalendarEvent(role, e.category, e.createdById, currentUserId) })));
 });
 
 const createEventSchema = z.object({
@@ -51,7 +52,7 @@ const updateEventSchema = createEventSchema.partial();
 calendarRouter.patch("/:id", async (req, res) => {
   const event = await prisma.calendarEvent.findUnique({ where: { id: req.params.id } });
   if (!event) return res.status(404).json({ error: "Event not found" });
-  if (!canEditCalendarEvent(req.currentUser!.role, event.category)) {
+  if (!canEditCalendarEvent(req.currentUser!.role, event.category, event.createdById, req.currentUser!.id)) {
     return res.status(403).json({ error: "You don't have access to this." });
   }
   const parsed = updateEventSchema.safeParse(req.body);
@@ -65,7 +66,7 @@ calendarRouter.patch("/:id", async (req, res) => {
 calendarRouter.delete("/:id", async (req, res) => {
   const event = await prisma.calendarEvent.findUnique({ where: { id: req.params.id } });
   if (!event) return res.status(404).json({ error: "Event not found" });
-  if (!canEditCalendarEvent(req.currentUser!.role, event.category)) {
+  if (!canEditCalendarEvent(req.currentUser!.role, event.category, event.createdById, req.currentUser!.id)) {
     return res.status(403).json({ error: "You don't have access to this." });
   }
   await prisma.calendarEvent.delete({ where: { id: event.id } });

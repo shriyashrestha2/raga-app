@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum AppTab: String, CaseIterable, Identifiable {
-    case roundup, practice, videos
+    case roundup, practice, videos, team
     var id: String { rawValue }
 
     var title: String {
@@ -9,6 +9,7 @@ enum AppTab: String, CaseIterable, Identifiable {
         case .roundup: return "Roundup"
         case .practice: return "Practice"
         case .videos: return "Videos"
+        case .team: return "Team"
         }
     }
 
@@ -17,6 +18,7 @@ enum AppTab: String, CaseIterable, Identifiable {
         case .roundup: return "megaphone.fill"
         case .practice: return "calendar"
         case .videos: return "play.fill"
+        case .team: return "person.3.fill"
         }
     }
 }
@@ -34,6 +36,7 @@ struct RootView: View {
                 case .roundup: RoundupView()
                 case .practice: PracticeView()
                 case .videos: VideosView()
+                case .team: TeamView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -70,10 +73,18 @@ private struct TopHeaderView: View {
                         .foregroundStyle(.white)
                 }
                 Spacer()
-                Button(action: appState.toggleRole) {
+                Menu {
+                    ForEach(appState.users) { user in
+                        Button {
+                            Task { await appState.switchUser(to: user.id) }
+                        } label: {
+                            Label("\(user.name) · \(user.role.label)", systemImage: user.role.symbol)
+                        }
+                    }
+                } label: {
                     HStack(spacing: 6) {
-                        Image(systemName: appState.role == .captain ? "shield.fill" : "person.fill")
-                        Text(appState.role.rawValue.capitalized)
+                        Image(systemName: appState.role.symbol)
+                        Text(appState.role.label)
                             .fontWeight(.bold)
                     }
                     .font(.caption)

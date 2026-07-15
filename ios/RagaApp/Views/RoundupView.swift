@@ -9,6 +9,10 @@ struct RoundupView: View {
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
+                if appState.role == .captain, let userId = appState.currentUserId {
+                    ChoreoReminderWidgetsView(userId: userId)
+                }
+
                 ForEach(pinned) { UpdateCardView(update: $0) }
                 ForEach(recent) { UpdateCardView(update: $0) }
 

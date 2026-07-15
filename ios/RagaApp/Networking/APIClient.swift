@@ -35,24 +35,60 @@ final class APIClient {
         return decoder
     }()
 
-    private func get<T: Decodable>(_ path: String, query: [String: String] = [:]) async throws -> T {
+    // There's no real login yet: the app identifies itself to the server via
+    // the `x-user-id` header, which the backend trusts as the current user's
+    // id and resolves their real role from the database. `userId` is passed
+    // explicitly by each caller (not read from a global) so APIClient itself
+    // stays free of any dependency on AppState.
+    private func request(_ path: String, method: String, query: [String: String] = [:], body: [String: Any]? = nil, userId: String?) throws -> URLRequest {
         var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
         if !query.isEmpty {
             components.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) }
         }
-        let (data, response) = try await URLSession.shared.data(from: components.url!)
+        var request = URLRequest(url: components.url!)
+        request.httpMethod = method
+        if let userId {
+            request.setValue(userId, forHTTPHeaderField: "x-user-id")
+        }
+        if let body {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        }
+        return request
+    }
+
+    func get<T: Decodable>(_ path: String, query: [String: String] = [:], userId: String? = nil) async throws -> T {
+        let request = try request(path, method: "GET", query: query, userId: userId)
+        let (data, response) = try await URLSession.shared.data(for: request)
         try Self.validate(response, data: data)
         return try decoder.decode(T.self, from: data)
     }
 
-    private func post<T: Decodable>(_ path: String, body: [String: Any]) async throws -> T {
-        var request = URLRequest(url: baseURL.appendingPathComponent(path))
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+    func post<T: Decodable>(_ path: String, body: [String: Any], userId: String? = nil) async throws -> T {
+        let request = try request(path, method: "POST", body: body, userId: userId)
         let (data, response) = try await URLSession.shared.data(for: request)
         try Self.validate(response, data: data)
         return try decoder.decode(T.self, from: data)
+    }
+
+    func put<T: Decodable>(_ path: String, body: [String: Any], userId: String? = nil) async throws -> T {
+        let request = try request(path, method: "PUT", body: body, userId: userId)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try Self.validate(response, data: data)
+        return try decoder.decode(T.self, from: data)
+    }
+
+    func patch<T: Decodable>(_ path: String, body: [String: Any], userId: String? = nil) async throws -> T {
+        let request = try request(path, method: "PATCH", body: body, userId: userId)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try Self.validate(response, data: data)
+        return try decoder.decode(T.self, from: data)
+    }
+
+    func delete(_ path: String, userId: String? = nil) async throws {
+        let request = try request(path, method: "DELETE", userId: userId)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try Self.validate(response, data: data)
     }
 
     private static func validate(_ response: URLResponse, data: Data) throws {
@@ -67,28 +103,75 @@ final class APIClient {
         try await get("users")
     }
 
-    func fetchUpdates() async throws -> [UpdateItem] {
-        try await get("updates")
+    func fetchMe(userId: String) async throws -> MeResponse {
+        try await get("me", userId: userId)
     }
 
-    func fetchPractices(userId: String?, role: Role) async throws -> [PracticeItem] {
-        var query = ["role": role.rawValue]
-        if let userId { query["userId"] = userId }
-        return try await get("practices", query: query)
+    func fetchUpdates(userId: String) async throws -> [UpdateItem] {
+        try await get("updates", userId: userId)
     }
 
-    func fetchVideos(set: String) async throws -> [VideoItem] {
-        try await get("videos", query: set == "All" ? [:] : ["set": set])
+    func fetchPractices(userId: String) async throws -> [PracticeItem] {
+        try await get("practices", userId: userId)
     }
 
-    func fetchCalendarEvents() async throws -> [CalendarEventItem] {
-        try await get("calendar")
+    func fetchVideos(set: String, userId: String) async throws -> [VideoItem] {
+        try await get("videos", query: set == "All" ? [:] : ["set": set], userId: userId)
+    }
+
+    func fetchCalendarEvents(userId: String) async throws -> [CalendarEventItem] {
+        try await get("calendar", userId: userId)
     }
 
     @discardableResult
     func submitRsvp(practiceId: String, userId: String, response: RsvpResponse, reason: String?) async throws -> RsvpMine {
-        var body: [String: Any] = ["userId": userId, "response": response.rawValue]
+        var body: [String: Any] = ["response": response.rawValue]
         if let reason { body["reason"] = reason }
-        return try await post("practices/\(practiceId)/rsvp", body: body)
+        return try await post("practices/\(practiceId)/rsvp", body: body, userId: userId)
+    }
+
+    // MARK: - Choreo/formation reminders (Captain-only)
+
+    func fetchChoreoReminders(userId: String) async throws -> [ChoreoReminderItem] {
+        try await get("choreo-reminders", userId: userId)
+    }
+
+    @discardableResult
+    func setChoreoReminderResolved(id: String, resolved: Bool, userId: String) async throws -> ChoreoReminderItem {
+        try await patch("choreo-reminders/\(id)", body: ["resolved": resolved], userId: userId)
+    }
+
+    // MARK: - Practice Planner (Captain-only)
+
+    func fetchPracticePlans(userId: String) async throws -> [PracticePlanItem] {
+        try await get("practice-plans", userId: userId)
+    }
+
+    @discardableResult
+    func createPracticePlan(title: String, date: Date, userId: String) async throws -> PracticePlanItem {
+        let iso = ISO8601DateFormatter().string(from: date)
+        return try await post("practice-plans", body: ["title": title, "date": iso], userId: userId)
+    }
+
+    @discardableResult
+    func addAgendaItem(planId: String, order: Int, startOffsetMin: Int, durationMin: Int, label: String, userId: String) async throws -> PracticeAgendaItemModel {
+        try await post(
+            "practice-plans/\(planId)/agenda-items",
+            body: ["order": order, "startOffsetMin": startOffsetMin, "durationMin": durationMin, "label": label],
+            userId: userId
+        )
+    }
+
+    // MARK: - Attendance
+
+    func fetchAttendance(eventId: String, userId: String) async throws -> AttendanceForEvent {
+        try await get("attendance/event/\(eventId)", userId: userId)
+    }
+
+    @discardableResult
+    func markAttendance(eventId: String, targetUserId: String, status: AttendanceStatus, notes: String?, userId: String) async throws -> AttendanceRecord {
+        var body: [String: Any] = ["userId": targetUserId, "status": status.rawValue]
+        if let notes { body["notes"] = notes }
+        return try await put("attendance/event/\(eventId)/mark", body: body, userId: userId)
     }
 }

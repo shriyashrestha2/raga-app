@@ -9,7 +9,11 @@ datasource db {
 
 enum Role {
   CAPTAIN
+  FINANCE
+  PRODUCTION
+  LOGISTICS
   DANCER
+  NEWBIE
 }
 
 enum UpdateTag {
@@ -29,30 +33,90 @@ enum CalendarCategory {
   PRODUCTION
   SOCIAL
   PERFORMANCE
+  LOGISTICS
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum FineStatus {
+  UNPAID
+  PAID
+  WAIVED
+}
+
+enum PropCostumeCategory {
+  PROP
+  COSTUME
+}
+
+enum PropCostumeStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  READY
+  RENTED
+}
+
+enum CompApplicationStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+}
+
+enum ChoreoReminderKind {
+  FORMATION
+  CHOREO_NOTE
 }
 
 model User {
-  id         String   @id @default(cuid())
-  name       String
-  initials   String
-  role       Role
-  telegramId String?  @unique
-  createdAt  DateTime @default(now())
+  id                    String   @id @default(cuid())
+  name                  String
+  initials              String
+  role                  Role
+  telegramId            String?  @unique
+  email                 String?
+  phone                 String?
+  year                  String?
+  major                 String?
+  bio                   String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  createdAt             DateTime @default(now())
 
-  updates Update[]
-  rsvps   Rsvp[]
-  videos  Video[]
+  updates               Update[]
+  rsvps                 Rsvp[]
+  videos                Video[]
+  attendanceRecords     Attendance[]            @relation("AttendanceSubject")
+  attendanceMarkedBy    Attendance[]            @relation("AttendanceMarkedBy")
+  fines                 Fine[]                  @relation("FineTarget")
+  finesIssued           Fine[]                  @relation("FineIssuedBy")
+  quotas                Quota[]                 @relation("QuotaSubject")
+  quotasCreated         Quota[]                 @relation("QuotaCreatedBy")
+  compApplicationsMade  CompApplication[]       @relation("CompAppCreatedBy")
+  compApplicationsFor   CompApplication[]       @relation("CompAppAssignedTo")
+  propsCostumesCreated  PropCostumeItem[]       @relation("PropCostumeCreatedBy")
+  propsCostumesAssigned PropCostumeAssignment[]
+  practicePlansCreated  PracticePlan[]          @relation("PracticePlanCreatedBy")
+  choreoRemindersMade   ChoreoReminder[]        @relation("ChoreoReminderCreatedBy")
+  calendarEventsCreated CalendarEvent[]         @relation("CalendarEventCreatedBy")
 }
 
 model Update {
-  id                  String    @id @default(cuid())
-  author              User      @relation(fields: [authorId], references: [id])
-  authorId            String
-  tag                 UpdateTag
-  content             String
-  pinned              Boolean   @default(false)
-  telegramMessageId    String?  @unique
-  createdAt           DateTime  @default(now())
+  id                String    @id @default(cuid())
+  author            User      @relation(fields: [authorId], references: [id])
+  authorId          String
+  tag               UpdateTag
+  content           String
+  pinned            Boolean   @default(false)
+  audienceRole      Role?
+  telegramMessageId String?   @unique
+  createdAt         DateTime  @default(now())
 }
 
 model Practice {
@@ -64,6 +128,7 @@ model Practice {
   createdAt DateTime @default(now())
 
   rsvps Rsvp[]
+  plans PracticePlan[]
 }
 
 model Rsvp {
@@ -85,6 +150,7 @@ model Video {
   id           String   @id @default(cuid())
   title        String
   set          String
+  competition  String?
   date         DateTime
   url          String
   thumbnail    String?
@@ -95,8 +161,212 @@ model Video {
 }
 
 model CalendarEvent {
-  id       String           @id @default(cuid())
-  date     DateTime
-  category CalendarCategory
-  label    String
+  id          String           @id @default(cuid())
+  date        DateTime
+  category    CalendarCategory
+  label       String
+  description String?
+  createdById String?
+  createdBy   User?            @relation("CalendarEventCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  attendance  Attendance[]
+}
+
+// Real check-in/attendance, distinct from Rsvp (which is RSVP-intent on
+// Practice only). Attaches to CalendarEvent so "edit attendance only for
+// events tagged to my role" reuses the same category->role mapping as
+// calendar edit permissions (see backend/src/permissions.ts).
+model Attendance {
+  id         String           @id @default(cuid())
+  event      CalendarEvent    @relation(fields: [eventId], references: [id])
+  eventId    String
+  user       User             @relation("AttendanceSubject", fields: [userId], references: [id])
+  userId     String
+  status     AttendanceStatus
+  notes      String?
+  markedById String
+  markedBy   User             @relation("AttendanceMarkedBy", fields: [markedById], references: [id])
+  updatedAt  DateTime         @updatedAt
+
+  @@unique([eventId, userId])
+}
+
+// Captain-only agenda/timeline planning tool. Distinct from the existing
+// Practice/Rsvp headcount tool, which stays visible to every role.
+model PracticePlan {
+  id          String   @id @default(cuid())
+  practice    Practice? @relation(fields: [practiceId], references: [id])
+  practiceId  String?
+  title       String
+  date        DateTime
+  createdById String
+  createdBy   User     @relation("PracticePlanCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  agendaItems PracticeAgendaItem[]
+}
+
+model PracticeAgendaItem {
+  id             String       @id @default(cuid())
+  plan           PracticePlan @relation(fields: [planId], references: [id])
+  planId         String
+  order          Int
+  startOffsetMin Int
+  durationMin    Int
+  label          String
+  notes          String?
+}
+
+// Captain-dashboard-only widgets. Not a page, not visible to any other role.
+model ChoreoReminder {
+  id          String             @id @default(cuid())
+  label       String
+  kind        ChoreoReminderKind
+  resolved    Boolean            @default(false)
+  createdById String
+  createdBy   User               @relation("ChoreoReminderCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+model PropCostumeItem {
+  id              String              @id @default(cuid())
+  name            String
+  category        PropCostumeCategory
+  status          PropCostumeStatus   @default(NOT_STARTED)
+  rentalVendor    String?
+  rentalCostCents Int?
+  rentalDueDate   DateTime?
+  notes           String?
+  createdById     String
+  createdBy       User                @relation("PropCostumeCreatedBy", fields: [createdById], references: [id])
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  assignments     PropCostumeAssignment[]
+}
+
+model PropCostumeAssignment {
+  id        String          @id @default(cuid())
+  item      PropCostumeItem @relation(fields: [itemId], references: [id])
+  itemId    String
+  user      User            @relation(fields: [userId], references: [id])
+  userId    String
+  size      String?
+  task      String?
+  status    String          @default("PENDING")
+  updatedAt DateTime        @updatedAt
+
+  @@unique([itemId, userId])
+}
+
+// Fine eligibility (who can be targeted) is unrestricted by role — any
+// member, including Captains, can receive a fine. Only send/manage access
+// (see permissions.ts: canManageFines) is role-gated.
+model Fine {
+  id          String     @id @default(cuid())
+  user        User       @relation("FineTarget", fields: [userId], references: [id])
+  userId      String
+  amountCents Int
+  reason      String
+  status      FineStatus @default(UNPAID)
+  issuedById  String
+  issuedBy    User       @relation("FineIssuedBy", fields: [issuedById], references: [id])
+  issuedAt    DateTime   @default(now())
+  paidAt      DateTime?
+  updatedAt   DateTime   @updatedAt
+}
+
+model Quota {
+  id           String    @id @default(cuid())
+  user         User      @relation("QuotaSubject", fields: [userId], references: [id])
+  userId       String
+  label        String
+  unit         String
+  targetValue  Float
+  currentValue Float     @default(0)
+  dueDate      DateTime?
+  createdById  String
+  createdBy    User      @relation("QuotaCreatedBy", fields: [createdById], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model CompApplication {
+  id              String                @id @default(cuid())
+  competitionName String
+  deadline        DateTime
+  status          CompApplicationStatus @default(NOT_STARTED)
+  packetUrl       String?
+  notes           String?
+  assignedToId    String?
+  assignedTo      User?                 @relation("CompAppAssignedTo", fields: [assignedToId], references: [id])
+  createdById     String
+  createdBy       User                  @relation("CompAppCreatedBy", fields: [createdById], references: [id])
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+}
+
+model Competition {
+  id         String   @id @default(cuid())
+  name       String
+  date       DateTime
+  location   String?
+  createdAt  DateTime @default(now())
+
+  financeSection    CompFinanceSection?
+  productionSection CompProductionSection?
+  logisticsSection  CompLogisticsSection?
+  scheduleItems     CompScheduleItem[]
+}
+
+model CompFinanceSection {
+  id            String      @id @default(cuid())
+  competition   Competition @relation(fields: [competitionId], references: [id])
+  competitionId String      @unique
+  budgetCents   Int         @default(0)
+  spentCents    Int         @default(0)
+  notes         String?
+  updatedAt     DateTime    @updatedAt
+}
+
+model CompProductionSection {
+  id            String      @id @default(cuid())
+  competition   Competition @relation(fields: [competitionId], references: [id])
+  competitionId String      @unique
+  musicStatus   String?
+  costumeStatus String?
+  notes         String?
+  updatedAt     DateTime    @updatedAt
+}
+
+model CompLogisticsSection {
+  id                  String      @id @default(cuid())
+  competition         Competition @relation(fields: [competitionId], references: [id])
+  competitionId       String      @unique
+  travelPlan          String?
+  lodging             String?
+  transportationNotes String?
+  updatedAt           DateTime    @updatedAt
+}
+
+model CompScheduleItem {
+  id            String      @id @default(cuid())
+  competition   Competition @relation(fields: [competitionId], references: [id])
+  competitionId String
+  time          DateTime
+  label         String
+  notes         String?
+}
+
+model TeamInfo {
+  id          String   @id @default(cuid())
+  teamName    String
+  season      String
+  description String?
+  updatedById String?
+  updatedAt   DateTime @updatedAt
 }

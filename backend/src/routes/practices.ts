@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../prisma.js";
+import { requireUser } from "../middleware/currentUser.js";
 
 export const practicesRouter = Router();
+practicesRouter.use(requireUser);
 
 function summarize(practice: {
   id: string;
@@ -11,12 +13,10 @@ function summarize(practice: {
   focus: string;
   reminder: string | null;
   rsvps: { userId: string; response: "YES" | "NO"; reason: string | null }[];
-}, currentUserId?: string) {
+}, currentUserId: string) {
   const rsvpYes = practice.rsvps.filter((r) => r.response === "YES").length;
   const rsvpNo = practice.rsvps.filter((r) => r.response === "NO").length;
-  const mine = currentUserId
-    ? practice.rsvps.find((r) => r.userId === currentUserId)
-    : undefined;
+  const mine = practice.rsvps.find((r) => r.userId === currentUserId);
 
   return {
     id: practice.id,
@@ -42,8 +42,8 @@ function captainDetail(practice: {
 }
 
 practicesRouter.get("/", async (req, res) => {
-  const currentUserId = typeof req.query.userId === "string" ? req.query.userId : undefined;
-  const asCaptain = req.query.role === "CAPTAIN";
+  const currentUserId = req.currentUser!.id;
+  const asCaptain = req.currentUser!.role === "CAPTAIN";
 
   const practices = await prisma.practice.findMany({
     include: { rsvps: { include: { user: true } } },
@@ -66,6 +66,9 @@ const createPracticeSchema = z.object({
 });
 
 practicesRouter.post("/", async (req, res) => {
+  if (req.currentUser!.role !== "CAPTAIN") {
+    return res.status(403).json({ error: "You don't have access to this." });
+  }
   const parsed = createPracticeSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.flatten() });
@@ -76,7 +79,6 @@ practicesRouter.post("/", async (req, res) => {
 
 const rsvpSchema = z
   .object({
-    userId: z.string().min(1),
     response: z.enum(["YES", "NO"]),
     reason: z.string().trim().min(1).optional(),
   })
@@ -90,7 +92,8 @@ practicesRouter.post("/:id/rsvp", async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.flatten() });
   }
-  const { userId, response, reason } = parsed.data;
+  const userId = req.currentUser!.id;
+  const { response, reason } = parsed.data;
   const practiceId = req.params.id;
 
   const practice = await prisma.practice.findUnique({ where: { id: practiceId } });

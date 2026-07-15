@@ -123,6 +123,7 @@ extension CalendarCategory {
         case .production: return .purple
         case .social: return .yellow
         case .performance: return Color("AccentColor")
+        case .logistics: return .orange
         }
     }
 }

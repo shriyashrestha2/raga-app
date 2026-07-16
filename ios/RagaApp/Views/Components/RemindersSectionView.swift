@@ -54,7 +54,7 @@ struct RemindersSectionView: View {
             }
         }
         .sheet(item: $addReminderTopic) { topic in
-            NewReminderSheet(topicName: topic.name) { title, description, date, addToCalendar in
+            NewReminderSheet(topicName: topic.name) { title, description, date, addToCalendar, visibleToRoles in
                 guard let userId = appState.currentUserId else { return }
                 Task {
                     let addedToCalendar = await viewModel.addReminder(
@@ -63,6 +63,7 @@ struct RemindersSectionView: View {
                         description: description,
                         date: date,
                         addToCalendar: addToCalendar,
+                        visibleToRoles: visibleToRoles,
                         userId: userId
                     )
                     if addedToCalendar {
@@ -203,12 +204,13 @@ private struct NewTopicSheet: View {
 private struct NewReminderSheet: View {
     @Environment(\.dismiss) private var dismiss
     let topicName: String
-    let onCreate: (String, String?, Date, Bool) -> Void
+    let onCreate: (String, String?, Date, Bool, [Role]) -> Void
 
     @State private var title: String = ""
     @State private var description: String = ""
     @State private var date: Date = Date()
     @State private var addToCalendar = false
+    @State private var visibilitySelection: Set<Role> = []
 
     private var isValid: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -228,6 +230,7 @@ private struct NewReminderSheet: View {
                 } footer: {
                     Text("If enabled, this reminder also appears on the shared team calendar.")
                 }
+                VisibilityRoleSection(selection: $visibilitySelection)
             }
             .navigationTitle("New Reminder")
             .navigationBarTitleDisplayMode(.inline)
@@ -239,7 +242,8 @@ private struct NewReminderSheet: View {
                             title.trimmingCharacters(in: .whitespacesAndNewlines),
                             description.trimmingCharacters(in: .whitespacesAndNewlines),
                             date,
-                            addToCalendar
+                            addToCalendar,
+                            Array(visibilitySelection)
                         )
                         dismiss()
                     }

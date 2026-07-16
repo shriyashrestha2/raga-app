@@ -40,7 +40,7 @@ final class RemindersViewModel: ObservableObject {
     /// Returns whether the created reminder was also added to the calendar,
     /// so the caller can decide whether to refresh AppState.calendarEvents.
     @discardableResult
-    func addReminder(topicId: String, title: String, description: String?, date: Date, addToCalendar: Bool, userId: String) async -> Bool {
+    func addReminder(topicId: String, title: String, description: String?, date: Date, addToCalendar: Bool, visibleToRoles: [Role], userId: String) async -> Bool {
         do {
             let created = try await APIClient.shared.createReminder(
                 topicId: topicId,
@@ -48,6 +48,7 @@ final class RemindersViewModel: ObservableObject {
                 description: description,
                 date: date,
                 addToCalendar: addToCalendar,
+                visibleToRoles: visibleToRoles,
                 userId: userId
             )
             if let index = topics.firstIndex(where: { $0.id == topicId }) {

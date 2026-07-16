@@ -18,9 +18,9 @@
 // API discovery behind. True invisibility (no nav entry, no fetch issued) is
 // enforced client-side. See ios/RagaApp/Views/Components/ChoreoReminderWidgetsView.swift.
 
-export type RoleName = "CAPTAIN" | "FINANCE" | "PRODUCTION" | "LOGISTICS" | "DANCER" | "NEWBIE";
+export type RoleName = "CAPTAIN" | "FINANCE" | "PRODUCTION" | "LOGISTICS" | "PR" | "DANCER" | "NEWBIE";
 
-export const ALL_ROLES: RoleName[] = ["CAPTAIN", "FINANCE", "PRODUCTION", "LOGISTICS", "DANCER", "NEWBIE"];
+export const ALL_ROLES: RoleName[] = ["CAPTAIN", "FINANCE", "PRODUCTION", "LOGISTICS", "PR", "DANCER", "NEWBIE"];
 
 // --- Layer 1: static role -> capability facts -------------------------------
 
@@ -63,6 +63,7 @@ export function propsCostumesAccess(role: RoleName): PropsCostumesMode {
       return "BUDGET_ONLY";
     case "LOGISTICS":
       return "NONE";
+    case "PR":
     case "DANCER":
     case "NEWBIE":
       return "OWN_ASSIGNMENTS_ONLY";
@@ -77,7 +78,7 @@ export function propsCostumesAccess(role: RoleName): PropsCostumesMode {
  * itself is the single source of truth for both calendar-edit and
  * attendance-edit checks. */
 export function categoryOwnerRole(category: string): RoleName | null {
-  if (category === "FINANCE" || category === "PRODUCTION" || category === "LOGISTICS") {
+  if (category === "FINANCE" || category === "PRODUCTION" || category === "LOGISTICS" || category === "PR") {
     return category;
   }
   return null;
@@ -181,5 +182,5 @@ export function buildCapabilities(role: RoleName): Capabilities {
 }
 
 function categoryOwnerRoleForSelf(role: RoleName): RoleName | null {
-  return role === "FINANCE" || role === "PRODUCTION" || role === "LOGISTICS" ? role : null;
+  return role === "FINANCE" || role === "PRODUCTION" || role === "LOGISTICS" || role === "PR" ? role : null;
 }

@@ -90,6 +90,42 @@ final class AppState: ObservableObject {
         }
     }
 
+    @discardableResult
+    func createCalendarEvent(date: Date, category: CalendarCategory, label: String, description: String?, visibleToRoles: [Role]) async -> Bool {
+        guard let userId = currentUserId else { return false }
+        do {
+            let created = try await APIClient.shared.createCalendarEvent(
+                date: date,
+                category: category,
+                label: label,
+                description: description,
+                visibleToRoles: visibleToRoles,
+                userId: userId
+            )
+            calendarEvents.append(created)
+            calendarEvents.sort { $0.date < $1.date }
+            errorMessage = nil
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    @discardableResult
+    func createUpdate(tag: UpdateTag, content: String, pinned: Bool, visibleToRoles: [Role]) async -> Bool {
+        guard let userId = currentUserId else { return false }
+        do {
+            let created = try await APIClient.shared.createUpdate(tag: tag, content: content, pinned: pinned, visibleToRoles: visibleToRoles, userId: userId)
+            updates.insert(created, at: 0)
+            errorMessage = nil
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
     func loadVideos() async {
         guard let userId = currentUserId else { return }
         do {

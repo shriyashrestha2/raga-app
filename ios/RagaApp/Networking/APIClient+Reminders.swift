@@ -18,12 +18,21 @@ extension APIClient {
     }
 
     @discardableResult
-    func createReminder(topicId: String, title: String, description: String?, date: Date, addToCalendar: Bool, userId: String) async throws -> ReminderItem {
+    func createReminder(
+        topicId: String,
+        title: String,
+        description: String?,
+        date: Date,
+        addToCalendar: Bool,
+        visibleToRoles: [Role],
+        userId: String
+    ) async throws -> ReminderItem {
         var body: [String: Any] = [
             "topicId": topicId,
             "title": title,
             "date": ISO8601DateFormatter().string(from: date),
             "addToCalendar": addToCalendar,
+            "visibleToRoles": visibleToRoles.map(\.rawValue),
         ]
         if let description, !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             body["description"] = description

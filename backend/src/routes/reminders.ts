@@ -10,6 +10,12 @@ import { requireUser } from "../middleware/currentUser.js";
 export const remindersRouter = Router();
 remindersRouter.use(requireUser);
 
+const ROLES = ["CAPTAIN", "FINANCE", "PRODUCTION", "LOGISTICS", "PR", "DANCER", "NEWBIE"] as const;
+
+function rolesToString(roles: readonly string[] | undefined): string {
+  return roles && roles.length ? roles.join(",") : "";
+}
+
 remindersRouter.get("/", async (req, res) => {
   const topics = await prisma.reminderTopic.findMany({
     where: { ownerId: req.currentUser!.id },
@@ -62,6 +68,7 @@ const createReminderSchema = z.object({
   description: z.string().optional(),
   date: z.coerce.date(),
   addToCalendar: z.coerce.boolean().default(false),
+  visibleToRoles: z.array(z.enum(ROLES)).optional(),
 });
 
 remindersRouter.post("/", async (req, res) => {
@@ -69,7 +76,7 @@ remindersRouter.post("/", async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.flatten() });
   }
-  const { topicId, title, description, date, addToCalendar } = parsed.data;
+  const { topicId, title, description, date, addToCalendar, visibleToRoles } = parsed.data;
 
   const topic = await prisma.reminderTopic.findUnique({ where: { id: topicId } });
   if (!topic) return res.status(404).json({ error: "Topic not found" });
@@ -81,7 +88,14 @@ remindersRouter.post("/", async (req, res) => {
     let calendarEventId: string | null = null;
     if (addToCalendar) {
       const event = await tx.calendarEvent.create({
-        data: { date, category: "REMINDER", label: title, description, createdById: req.currentUser!.id },
+        data: {
+          date,
+          category: "REMINDER",
+          label: title,
+          description,
+          visibleToRoles: rolesToString(visibleToRoles),
+          createdById: req.currentUser!.id,
+        },
       });
       calendarEventId = event.id;
     }

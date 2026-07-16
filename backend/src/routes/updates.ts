@@ -7,21 +7,43 @@ import { canPostAnnouncement, type RoleName } from "../permissions.js";
 export const updatesRouter = Router();
 updatesRouter.use(requireUser);
 
-updatesRouter.get("/", async (_req, res) => {
+const ROLES = ["CAPTAIN", "FINANCE", "PRODUCTION", "LOGISTICS", "PR", "DANCER", "NEWBIE"] as const;
+
+function rolesToString(roles: readonly string[] | undefined): string {
+  return roles && roles.length ? roles.join(",") : "";
+}
+
+function rolesFromString(value: string): string[] {
+  return value ? value.split(",") : [];
+}
+
+// Empty visibleToRoles means every role can see the update; otherwise the
+// viewer's role must be explicitly included. Distinct from audienceRole,
+// which only scopes who is allowed to *post* to a non-Captain's own channel.
+function canViewUpdate(role: string, visibleToRoles: string): boolean {
+  const roles = rolesFromString(visibleToRoles);
+  return roles.length === 0 || roles.includes(role);
+}
+
+function serializeUpdate<T extends { visibleToRoles: string }>(update: T) {
+  return { ...update, visibleToRoles: rolesFromString(update.visibleToRoles) };
+}
+
+updatesRouter.get("/", async (req, res) => {
+  const role = req.currentUser!.role;
   const updates = await prisma.update.findMany({
     include: { author: true },
     orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
   });
-  res.json(updates);
+  res.json(updates.filter((u) => canViewUpdate(role, u.visibleToRoles)).map(serializeUpdate));
 });
-
-const ROLES = ["CAPTAIN", "FINANCE", "PRODUCTION", "LOGISTICS", "DANCER", "NEWBIE"] as const;
 
 const createUpdateSchema = z.object({
   tag: z.enum(["ANNOUNCEMENT", "COSTUME_LOGISTICS", "CHOREO_NOTES"]),
   content: z.string().min(1),
   pinned: z.boolean().optional(),
   audienceRole: z.enum(ROLES).nullable().optional(),
+  visibleToRoles: z.array(z.enum(ROLES)).optional(),
 });
 
 updatesRouter.post("/", async (req, res) => {
@@ -30,7 +52,14 @@ updatesRouter.post("/", async (req, res) => {
     return res.status(400).json({ error: parsed.error.flatten() });
   }
   const role = req.currentUser!.role;
-  const audienceRole = (parsed.data.audienceRole ?? null) as RoleName | null;
+  let audienceRole = (parsed.data.audienceRole ?? null) as RoleName | null;
+
+  if (role !== "CAPTAIN" && (role === "FINANCE" || role === "PRODUCTION" || role === "LOGISTICS")) {
+    // Own-channel roles can only post under their own audience — the
+    // client-sent value is overridden, not merely checked (mirrors
+    // POST /calendar's category auto-scoping).
+    audienceRole = role;
+  }
 
   if (!canPostAnnouncement(role, audienceRole)) {
     return res.status(403).json({ error: "You don't have access to this." });
@@ -43,8 +72,9 @@ updatesRouter.post("/", async (req, res) => {
       content: parsed.data.content,
       pinned: parsed.data.pinned ?? false,
       audienceRole: audienceRole ?? undefined,
+      visibleToRoles: rolesToString(parsed.data.visibleToRoles),
     },
     include: { author: true },
   });
-  res.status(201).json(update);
+  res.status(201).json(serializeUpdate(update));
 });

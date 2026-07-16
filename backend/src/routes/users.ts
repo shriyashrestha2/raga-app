@@ -39,7 +39,7 @@ usersRouter.patch<{ id: string }>("/:id", requireUser, async (req, res) => {
 });
 
 const updateRoleSchema = z.object({
-  role: z.enum(["CAPTAIN", "FINANCE", "PRODUCTION", "LOGISTICS", "DANCER", "NEWBIE"]),
+  role: z.enum(["CAPTAIN", "FINANCE", "PRODUCTION", "LOGISTICS", "PR", "DANCER", "NEWBIE"]),
 });
 
 // Captain-only: assigning/changing which role a member holds.

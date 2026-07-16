@@ -5,6 +5,7 @@ enum Role: String, Codable, CaseIterable {
     case finance = "FINANCE"
     case production = "PRODUCTION"
     case logistics = "LOGISTICS"
+    case pr = "PR"
     case dancer = "DANCER"
     case newbie = "NEWBIE"
 
@@ -14,6 +15,7 @@ enum Role: String, Codable, CaseIterable {
         case .finance: return "Finance"
         case .production: return "Production"
         case .logistics: return "Logistics"
+        case .pr: return "PR Chair"
         case .dancer: return "Dancer"
         case .newbie: return "Newbie"
         }
@@ -25,13 +27,14 @@ enum Role: String, Codable, CaseIterable {
         case .finance: return "dollarsign.circle.fill"
         case .production: return "video.fill"
         case .logistics: return "shippingbox.fill"
+        case .pr: return "megaphone.fill"
         case .dancer: return "person.fill"
         case .newbie: return "person.fill.questionmark"
         }
     }
 }
 
-enum UpdateTag: String, Codable {
+enum UpdateTag: String, Codable, CaseIterable {
     case announcement = "ANNOUNCEMENT"
     case costumeLogistics = "COSTUME_LOGISTICS"
     case choreoNotes = "CHOREO_NOTES"
@@ -57,6 +60,7 @@ enum CalendarCategory: String, Codable, CaseIterable {
     case social = "SOCIAL"
     case performance = "PERFORMANCE"
     case logistics = "LOGISTICS"
+    case pr = "PR"
     case reminder = "REMINDER"
 
     var label: String {
@@ -67,6 +71,7 @@ enum CalendarCategory: String, Codable, CaseIterable {
         case .social: return "Social"
         case .performance: return "Performance"
         case .logistics: return "Logistics"
+        case .pr: return "PR"
         case .reminder: return "Reminder"
         }
     }
@@ -130,6 +135,8 @@ struct UpdateItem: Codable, Identifiable {
     let content: String
     let pinned: Bool
     let audienceRole: Role?
+    /// Roles allowed to see this update; empty means visible to everyone.
+    let visibleToRoles: [Role]
     let createdAt: Date
     let author: AppUser
 }
@@ -176,6 +183,8 @@ struct CalendarEventItem: Codable, Identifiable {
     let category: CalendarCategory
     let label: String
     let canEdit: Bool
+    /// Roles allowed to see this event; empty means visible to everyone.
+    let visibleToRoles: [Role]
 }
 
 // MARK: - Choreo/formation reminders (Captain-dashboard-only widgets)

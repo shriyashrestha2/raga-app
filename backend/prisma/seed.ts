@@ -23,28 +23,33 @@ async function main() {
   await prisma.video.deleteMany();
   await prisma.update.deleteMany();
   await prisma.practice.deleteMany();
+  await prisma.reminder.deleteMany();
+  await prisma.reminderTopic.deleteMany();
   await prisma.calendarEvent.deleteMany();
   await prisma.user.deleteMany();
 
   // One demo user per role.
-  const [captain, finance, production, logistics, dancer, newbie] = await Promise.all([
+  const [captain, finance, production, logistics, pr, dancer, newbie] = await Promise.all([
     prisma.user.create({
-      data: { name: "Priya K.", initials: "PK", role: "CAPTAIN", email: "priya@ruraga.org", year: "Senior" },
+      data: { name: "Eesan", initials: "EE", role: "CAPTAIN", email: "eesan@ruraga.org", year: "Senior" },
     }),
     prisma.user.create({
-      data: { name: "Arjun M.", initials: "AM", role: "FINANCE", email: "arjun@ruraga.org", year: "Junior" },
+      data: { name: "Harshil", initials: "HA", role: "FINANCE", email: "harshil@ruraga.org", year: "Junior" },
     }),
     prisma.user.create({
-      data: { name: "Meera S.", initials: "MS", role: "PRODUCTION", email: "meera@ruraga.org", year: "Junior" },
+      data: { name: "Hemal", initials: "HE", role: "PRODUCTION", email: "hemal@ruraga.org", year: "Junior" },
     }),
     prisma.user.create({
-      data: { name: "Rohan V.", initials: "RV", role: "LOGISTICS", email: "rohan@ruraga.org", year: "Sophomore" },
+      data: { name: "Shivani", initials: "SH", role: "LOGISTICS", email: "shivani@ruraga.org", year: "Sophomore" },
     }),
     prisma.user.create({
-      data: { name: "Sam D.", initials: "SD", role: "DANCER", email: "sam@ruraga.org", year: "Sophomore" },
+      data: { name: "Siya", initials: "SI", role: "PR", email: "siya@ruraga.org", year: "Sophomore" },
     }),
     prisma.user.create({
-      data: { name: "Jordan T.", initials: "JT", role: "NEWBIE", email: "jordan@ruraga.org", year: "Freshman" },
+      data: { name: "Krish", initials: "KR", role: "DANCER", email: "krish@ruraga.org", year: "Sophomore" },
+    }),
+    prisma.user.create({
+      data: { name: "Karan", initials: "KA", role: "NEWBIE", email: "karan@ruraga.org", year: "Freshman" },
     }),
   ]);
 
@@ -197,8 +202,9 @@ async function main() {
     ],
   });
 
-  const calendarEventData: { date: Date; category: "FINANCE" | "PRACTICE" | "PRODUCTION" | "SOCIAL" | "PERFORMANCE" | "LOGISTICS"; label: string; createdById?: string }[] = [
+  const calendarEventData: { date: Date; category: "FINANCE" | "PRACTICE" | "PRODUCTION" | "SOCIAL" | "PERFORMANCE" | "LOGISTICS" | "PR"; label: string; createdById?: string }[] = [
     { date: new Date("2026-10-02"), category: "FINANCE", label: "Budget meeting", createdById: finance.id },
+    { date: new Date("2026-10-11"), category: "PR", label: "Instagram takeover post", createdById: pr.id },
     { date: new Date("2026-10-05"), category: "PRACTICE", label: "AV Day" },
     { date: new Date("2026-10-05"), category: "PRODUCTION", label: "Video shoot", createdById: production.id },
     { date: new Date("2026-10-09"), category: "PRACTICE", label: "Formation drill" },

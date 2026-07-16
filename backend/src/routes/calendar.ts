@@ -7,13 +7,38 @@ import { canEditCalendarEvent } from "../permissions.js";
 export const calendarRouter = Router();
 calendarRouter.use(requireUser);
 
-const CATEGORIES = ["FINANCE", "PRACTICE", "PRODUCTION", "SOCIAL", "PERFORMANCE", "LOGISTICS"] as const;
+const CATEGORIES = ["FINANCE", "PRACTICE", "PRODUCTION", "SOCIAL", "PERFORMANCE", "LOGISTICS", "PR"] as const;
+const ROLES = ["CAPTAIN", "FINANCE", "PRODUCTION", "LOGISTICS", "PR", "DANCER", "NEWBIE"] as const;
+
+function rolesToString(roles: readonly string[] | undefined): string {
+  return roles && roles.length ? roles.join(",") : "";
+}
+
+function rolesFromString(value: string): string[] {
+  return value ? value.split(",") : [];
+}
+
+// Empty visibleToRoles means every role can see the event; otherwise the
+// viewer's role must be explicitly included — there's no implicit Captain
+// bypass, matching how the roles are picked at creation time.
+function canViewCalendarEvent(role: string, visibleToRoles: string): boolean {
+  const roles = rolesFromString(visibleToRoles);
+  return roles.length === 0 || roles.includes(role);
+}
+
+function serializeEvent<T extends { visibleToRoles: string }>(event: T) {
+  return { ...event, visibleToRoles: rolesFromString(event.visibleToRoles) };
+}
 
 calendarRouter.get("/", async (req, res) => {
   const role = req.currentUser!.role;
   const currentUserId = req.currentUser!.id;
   const events = await prisma.calendarEvent.findMany({ orderBy: { date: "asc" } });
-  res.json(events.map((e) => ({ ...e, canEdit: canEditCalendarEvent(role, e.category, e.createdById, currentUserId) })));
+  res.json(
+    events
+      .filter((e) => canViewCalendarEvent(role, e.visibleToRoles))
+      .map((e) => ({ ...serializeEvent(e), canEdit: canEditCalendarEvent(role, e.category, e.createdById, currentUserId) }))
+  );
 });
 
 const createEventSchema = z.object({
@@ -21,6 +46,7 @@ const createEventSchema = z.object({
   category: z.enum(CATEGORIES),
   label: z.string().min(1),
   description: z.string().optional(),
+  visibleToRoles: z.array(z.enum(ROLES)).optional(),
 });
 
 calendarRouter.post("/", async (req, res) => {
@@ -32,19 +58,20 @@ calendarRouter.post("/", async (req, res) => {
   let { category } = parsed.data;
 
   if (role !== "CAPTAIN") {
-    // Finance/Production/Logistics can only create events tagged to their
+    // Finance/Production/Logistics/PR can only create events tagged to their
     // own role — the client-sent category is overridden, not merely checked.
-    if (role === "FINANCE" || role === "PRODUCTION" || role === "LOGISTICS") {
+    if (role === "FINANCE" || role === "PRODUCTION" || role === "LOGISTICS" || role === "PR") {
       category = role;
     } else {
       return res.status(403).json({ error: "You don't have access to this." });
     }
   }
 
+  const { visibleToRoles, ...rest } = parsed.data;
   const event = await prisma.calendarEvent.create({
-    data: { ...parsed.data, category, createdById: req.currentUser!.id },
+    data: { ...rest, category, visibleToRoles: rolesToString(visibleToRoles), createdById: req.currentUser!.id },
   });
-  res.status(201).json({ ...event, canEdit: true });
+  res.status(201).json({ ...serializeEvent(event), canEdit: true });
 });
 
 const updateEventSchema = createEventSchema.partial();
@@ -59,8 +86,12 @@ calendarRouter.patch("/:id", async (req, res) => {
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.flatten() });
   }
-  const updated = await prisma.calendarEvent.update({ where: { id: event.id }, data: parsed.data });
-  res.json({ ...updated, canEdit: true });
+  const { visibleToRoles, ...rest } = parsed.data;
+  const updated = await prisma.calendarEvent.update({
+    where: { id: event.id },
+    data: { ...rest, ...(visibleToRoles !== undefined ? { visibleToRoles: rolesToString(visibleToRoles) } : {}) },
+  });
+  res.json({ ...serializeEvent(updated), canEdit: true });
 });
 
 calendarRouter.delete("/:id", async (req, res) => {

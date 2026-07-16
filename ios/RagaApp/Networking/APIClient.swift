@@ -111,6 +111,17 @@ final class APIClient {
         try await get("updates", userId: userId)
     }
 
+    @discardableResult
+    func createUpdate(tag: UpdateTag, content: String, pinned: Bool, visibleToRoles: [Role], userId: String) async throws -> UpdateItem {
+        let body: [String: Any] = [
+            "tag": tag.rawValue,
+            "content": content,
+            "pinned": pinned,
+            "visibleToRoles": visibleToRoles.map(\.rawValue),
+        ]
+        return try await post("updates", body: body, userId: userId)
+    }
+
     func fetchPractices(userId: String) async throws -> [PracticeItem] {
         try await get("practices", userId: userId)
     }
@@ -121,6 +132,27 @@ final class APIClient {
 
     func fetchCalendarEvents(userId: String) async throws -> [CalendarEventItem] {
         try await get("calendar", userId: userId)
+    }
+
+    @discardableResult
+    func createCalendarEvent(
+        date: Date,
+        category: CalendarCategory,
+        label: String,
+        description: String?,
+        visibleToRoles: [Role],
+        userId: String
+    ) async throws -> CalendarEventItem {
+        var body: [String: Any] = [
+            "date": ISO8601DateFormatter().string(from: date),
+            "category": category.rawValue,
+            "label": label,
+            "visibleToRoles": visibleToRoles.map(\.rawValue),
+        ]
+        if let description, !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            body["description"] = description
+        }
+        return try await post("calendar", body: body, userId: userId)
     }
 
     @discardableResult

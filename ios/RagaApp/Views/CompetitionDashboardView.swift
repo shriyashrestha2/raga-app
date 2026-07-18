@@ -3,7 +3,7 @@ import SwiftUI
 /// Competition Dashboard: every role sees the shared schedule; the
 /// finance/production/logistics section cards render only when the
 /// decoded `CompetitionItem` actually carries that section's data (the
-/// server omits keys the caller's role can't see), so Dancer/Newbie simply
+/// server omits keys the caller's role can't see), so Returner/Newbie simply
 /// see no section cards at all rather than a locked placeholder.
 struct CompetitionDashboardView: View {
     @EnvironmentObject private var appState: AppState

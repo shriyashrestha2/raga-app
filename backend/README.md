@@ -59,5 +59,5 @@ Once enabled, the bot filters incoming messages per the PRD (§4.1): only
 posts from a user whose seeded role is `CAPTAIN`, or any message containing
 `#update`, get mirrored into the `Update` table. `#costume`/`#logistics` and
 `#choreo` hashtags route to those categories; everything else defaults to
-`Announcement`. Unknown senders are auto-created as `DANCER` users the first
+`Announcement`. Unknown senders are auto-created as `RETURNER` users the first
 time they post a `#update`-tagged message.

@@ -15,41 +15,63 @@ final class AppState: ObservableObject {
 
     let videoSets = ["All", "Set 1", "Set 2", "Set 3", "Full Run"]
 
-    /// Dev-only stand-in for auth: `currentUserId` picks which seeded demo
-    /// user (one per role) the app acts as. The server is the source of
-    /// truth for that user's role and capabilities (fetched via `/me`), not
-    /// this client. Real accounts are a follow-up (see backend/README.md and
-    /// the PRD's open questions).
+    private static let loggedInUserIdKey = "loggedInUserId"
+
+    init() {
+        currentUserId = UserDefaults.standard.string(forKey: Self.loggedInUserIdKey)
+    }
+
+    /// The server is the source of truth for the current user's role and
+    /// capabilities (fetched via `/me`), not this client.
     var currentUser: AppUser? {
         users.first(where: { $0.id == currentUserId })
     }
 
+    var isLoggedIn: Bool { currentUserId != nil }
+
     /// Convenience accessor kept for existing call sites that only need the
-    /// role (e.g. view-conditional UI). Falls back to `.dancer` before the
+    /// role (e.g. view-conditional UI). Falls back to `.returner` before the
     /// first user/capabilities fetch completes.
     var role: Role {
-        currentUser?.role ?? .dancer
+        currentUser?.role ?? .returner
+    }
+
+    /// Called once onboarding (phone verification + role selection, or a
+    /// returning-user re-login) produces a real account. Persists the id so
+    /// the app stays logged in across launches.
+    func logIn(user: AppUser) {
+        currentUserId = user.id
+        UserDefaults.standard.set(user.id, forKey: Self.loggedInUserIdKey)
+        Task { await loadAll() }
+    }
+
+    func logOut() {
+        currentUserId = nil
+        UserDefaults.standard.removeObject(forKey: Self.loggedInUserIdKey)
+        capabilities = nil
+        users = []
+        updates = []
+        practices = []
+        videos = []
+        calendarEvents = []
     }
 
     func loadAll() async {
+        guard currentUserId != nil else { return }
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
         do {
-            let fetchedUsers = try await APIClient.shared.fetchUsers()
-            users = fetchedUsers
-            if currentUserId == nil || !fetchedUsers.contains(where: { $0.id == currentUserId }) {
-                currentUserId = fetchedUsers.first(where: { $0.role == .captain })?.id ?? fetchedUsers.first?.id
-            }
+            users = try await APIClient.shared.fetchUsers()
             await refreshCurrentUserContext()
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    /// Re-fetches everything that depends on which demo user is "logged in":
-    /// capabilities plus every role-sensitive feed. Called after the initial
-    /// load and every time `switchUser(to:)` picks a different demo user.
+    /// Re-fetches everything that depends on the logged-in user: capabilities
+    /// plus every role-sensitive feed. Called after the initial load and
+    /// after `logIn(user:)`.
     func refreshCurrentUserContext() async {
         guard let userId = currentUserId else { return }
         do {
@@ -65,11 +87,6 @@ final class AppState: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
         }
-    }
-
-    func switchUser(to userId: String) async {
-        currentUserId = userId
-        await refreshCurrentUserContext()
     }
 
     func loadPractices() async {

@@ -5,7 +5,7 @@ import SwiftUI
 /// backend/src/permissions.ts's propsCostumesAccess):
 ///   FULL                  — Captain/Production: full item list + create/edit/assign.
 ///   BUDGET_ONLY            — Finance: aggregate budget summary only.
-///   OWN_ASSIGNMENTS_ONLY   — Dancer/Newbie: read-only list of the viewer's own tasks.
+///   OWN_ASSIGNMENTS_ONLY   — Returner/Newbie: read-only list of the viewer's own tasks.
 ///   NONE / missing          — Logistics (or capabilities not yet loaded): restricted state.
 struct PropsCostumesView: View {
     @EnvironmentObject private var appState: AppState
@@ -111,7 +111,7 @@ struct PropsCostumesView: View {
         }
     }
 
-    // MARK: OWN_ASSIGNMENTS_ONLY — Dancer/Newbie
+    // MARK: OWN_ASSIGNMENTS_ONLY — Returner/Newbie
 
     @ViewBuilder
     private var ownAssignmentsContent: some View {

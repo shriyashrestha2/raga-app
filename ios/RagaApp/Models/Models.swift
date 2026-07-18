@@ -6,7 +6,7 @@ enum Role: String, Codable, CaseIterable {
     case production = "PRODUCTION"
     case logistics = "LOGISTICS"
     case pr = "PR"
-    case dancer = "DANCER"
+    case returner = "RETURNER"
     case newbie = "NEWBIE"
 
     var label: String {
@@ -16,7 +16,7 @@ enum Role: String, Codable, CaseIterable {
         case .production: return "Production"
         case .logistics: return "Logistics"
         case .pr: return "PR Chair"
-        case .dancer: return "Dancer"
+        case .returner: return "Returner"
         case .newbie: return "Newbie"
         }
     }
@@ -28,7 +28,7 @@ enum Role: String, Codable, CaseIterable {
         case .production: return "video.fill"
         case .logistics: return "shippingbox.fill"
         case .pr: return "megaphone.fill"
-        case .dancer: return "person.fill"
+        case .returner: return "person.fill"
         case .newbie: return "person.fill.questionmark"
         }
     }
@@ -56,23 +56,19 @@ enum RsvpResponse: String, Codable {
 enum CalendarCategory: String, Codable, CaseIterable {
     case finance = "FINANCE"
     case practice = "PRACTICE"
+    case captains = "CAPTAINS"
     case production = "PRODUCTION"
     case social = "SOCIAL"
-    case performance = "PERFORMANCE"
     case logistics = "LOGISTICS"
-    case pr = "PR"
-    case reminder = "REMINDER"
 
     var label: String {
         switch self {
         case .finance: return "Finance"
-        case .practice: return "Practice / Captains"
+        case .practice: return "Practice"
+        case .captains: return "Captains"
         case .production: return "Production"
         case .social: return "Social"
-        case .performance: return "Performance"
         case .logistics: return "Logistics"
-        case .pr: return "PR"
-        case .reminder: return "Reminder"
         }
     }
 }
@@ -106,6 +102,7 @@ struct Capabilities: Codable {
     struct ManageAnyCapability: Codable { let canManageAny: Bool }
     struct CompetitionDashboardCapability: Codable { let editableSection: String?; let canViewSchedule: Bool }
     struct TeamInfoCapability: Codable { let canEdit: Bool }
+    struct RemindersCapability: Codable { let canCreate: Bool; let lockedCategory: CalendarCategory? }
 
     let calendar: CalendarCapability
     let attendance: AttendanceCapability
@@ -120,6 +117,7 @@ struct Capabilities: Codable {
     let competitionDashboard: CompetitionDashboardCapability
     let teamInfo: TeamInfoCapability
     let roleManagement: AccessOnly
+    let reminders: RemindersCapability
 }
 
 struct MeResponse: Codable {
@@ -258,19 +256,31 @@ struct AttendanceForEvent: Codable {
     let records: [AttendanceRecord]
 }
 
-// MARK: - Personal reminders (Roundup tab, all roles)
+// MARK: - Shared team reminders (Roundup tab, all roles see the same list)
+
+enum ReminderKind: String, Codable, CaseIterable {
+    case rsvp = "RSVP"
+    case task = "TASK"
+
+    var label: String {
+        switch self {
+        case .rsvp: return "RSVP"
+        case .task: return "Task"
+        }
+    }
+}
 
 struct ReminderItem: Codable, Identifiable {
     let id: String
-    let topicId: String
     let title: String
     let description: String?
     let date: Date
-    let addedToCalendar: Bool
-}
-
-struct ReminderTopic: Codable, Identifiable {
-    let id: String
-    let name: String
-    let reminders: [ReminderItem]
+    let category: CalendarCategory
+    let type: ReminderKind
+    let createdBy: AppUser
+    let rsvpYes: Int
+    let rsvpNo: Int
+    let myRsvp: RsvpResponse?
+    let doneCount: Int
+    let doneByMe: Bool
 }

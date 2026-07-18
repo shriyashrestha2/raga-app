@@ -1,38 +1,27 @@
 import Foundation
 
-/// Personal reminders — every role manages only their own topics/reminders,
-/// so unlike quotas/fines there's no separate "target user" concept; `userId`
-/// here is always just the acting user (sent as `x-user-id`).
+/// Shared team reminders — everyone sees the same filterable list; only
+/// Captains/board positions can create (server-enforced, mirrored client-side
+/// via AppState.capabilities.reminders).
 extension APIClient {
-    func fetchReminderTopics(userId: String) async throws -> [ReminderTopic] {
-        try await get("reminders", userId: userId)
-    }
-
-    @discardableResult
-    func createReminderTopic(name: String, userId: String) async throws -> ReminderTopic {
-        try await post("reminders/topics", body: ["name": name], userId: userId)
-    }
-
-    func deleteReminderTopic(id: String, userId: String) async throws {
-        try await delete("reminders/topics/\(id)", userId: userId)
+    func fetchReminders(category: CalendarCategory?, userId: String) async throws -> [ReminderItem] {
+        try await get("reminders", query: category.map { ["category": $0.rawValue] } ?? [:], userId: userId)
     }
 
     @discardableResult
     func createReminder(
-        topicId: String,
         title: String,
         description: String?,
         date: Date,
-        addToCalendar: Bool,
-        visibleToRoles: [Role],
+        type: ReminderKind,
+        category: CalendarCategory,
         userId: String
     ) async throws -> ReminderItem {
         var body: [String: Any] = [
-            "topicId": topicId,
             "title": title,
             "date": ISO8601DateFormatter().string(from: date),
-            "addToCalendar": addToCalendar,
-            "visibleToRoles": visibleToRoles.map(\.rawValue),
+            "type": type.rawValue,
+            "category": category.rawValue,
         ]
         if let description, !description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             body["description"] = description
@@ -42,5 +31,15 @@ extension APIClient {
 
     func deleteReminder(id: String, userId: String) async throws {
         try await delete("reminders/\(id)", userId: userId)
+    }
+
+    @discardableResult
+    func rsvpReminder(id: String, response: RsvpResponse, userId: String) async throws -> ReminderItem {
+        try await post("reminders/\(id)/rsvp", body: ["response": response.rawValue], userId: userId)
+    }
+
+    @discardableResult
+    func setReminderDone(id: String, done: Bool, userId: String) async throws -> ReminderItem {
+        try await post("reminders/\(id)/done", body: ["done": done], userId: userId)
     }
 }

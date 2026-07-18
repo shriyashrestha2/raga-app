@@ -18,9 +18,9 @@
 // API discovery behind. True invisibility (no nav entry, no fetch issued) is
 // enforced client-side. See ios/RagaApp/Views/Components/ChoreoReminderWidgetsView.swift.
 
-export type RoleName = "CAPTAIN" | "FINANCE" | "PRODUCTION" | "LOGISTICS" | "PR" | "DANCER" | "NEWBIE";
+export type RoleName = "CAPTAIN" | "FINANCE" | "PRODUCTION" | "LOGISTICS" | "PR" | "RETURNER" | "NEWBIE";
 
-export const ALL_ROLES: RoleName[] = ["CAPTAIN", "FINANCE", "PRODUCTION", "LOGISTICS", "PR", "DANCER", "NEWBIE"];
+export const ALL_ROLES: RoleName[] = ["CAPTAIN", "FINANCE", "PRODUCTION", "LOGISTICS", "PR", "RETURNER", "NEWBIE"];
 
 // --- Layer 1: static role -> capability facts -------------------------------
 
@@ -64,7 +64,7 @@ export function propsCostumesAccess(role: RoleName): PropsCostumesMode {
     case "LOGISTICS":
       return "NONE";
     case "PR":
-    case "DANCER":
+    case "RETURNER":
     case "NEWBIE":
       return "OWN_ASSIGNMENTS_ONLY";
   }
@@ -72,16 +72,40 @@ export function propsCostumesAccess(role: RoleName): PropsCostumesMode {
 
 // --- Layer 2: contextual guards ---------------------------------------------
 
+export type CategoryName = "FINANCE" | "PRACTICE" | "CAPTAINS" | "PRODUCTION" | "SOCIAL" | "LOGISTICS";
+
 /** Categories on CalendarEvent that map to a role's "own" events. Other
- * categories (PRACTICE/SOCIAL/PERFORMANCE) are Captain-only to edit — there's
+ * categories (PRACTICE/CAPTAINS) are Captain-only to edit — there's
  * deliberately no separate `ownerRole` field on CalendarEvent; the category
  * itself is the single source of truth for both calendar-edit and
- * attendance-edit checks. */
+ * attendance-edit checks. PR owns SOCIAL (the PR/social chair role runs the
+ * team's social calendar) rather than a same-named category. */
 export function categoryOwnerRole(category: string): RoleName | null {
-  if (category === "FINANCE" || category === "PRODUCTION" || category === "LOGISTICS" || category === "PR") {
+  if (category === "FINANCE" || category === "PRODUCTION" || category === "LOGISTICS") {
     return category;
   }
+  if (category === "SOCIAL") return "PR";
   return null;
+}
+
+/** The single category a role "owns" for auto-scoping content it creates
+ * (calendar events, reminders) — everyone else is either Captain (free pick
+ * of any category) or has no create access at all. */
+export function ownedCategory(role: RoleName): CategoryName | null {
+  switch (role) {
+    case "FINANCE": return "FINANCE";
+    case "PRODUCTION": return "PRODUCTION";
+    case "LOGISTICS": return "LOGISTICS";
+    case "PR": return "SOCIAL";
+    default: return null;
+  }
+}
+
+/** Reminders (Roundup tab): Captains and board positions (Finance/Production/
+ * Logistics/PR) can create; Returners/Newbies can only view and interact
+ * (RSVP, mark done). */
+export function canCreateReminder(role: RoleName): boolean {
+  return role === "CAPTAIN" || role === "FINANCE" || role === "PRODUCTION" || role === "LOGISTICS" || role === "PR";
 }
 
 /** `createdById`/`currentUserId` are only relevant for categories with no
@@ -158,6 +182,7 @@ export interface Capabilities {
   competitionDashboard: { editableSection: CompSection | "ALL" | null; canViewSchedule: boolean };
   teamInfo: { canEdit: boolean };
   roleManagement: { canAccess: boolean };
+  reminders: { canCreate: boolean; lockedCategory: CategoryName | null };
 }
 
 export function buildCapabilities(role: RoleName): Capabilities {
@@ -178,6 +203,7 @@ export function buildCapabilities(role: RoleName): Capabilities {
     competitionDashboard: { editableSection: editableCompSection(role), canViewSchedule: true },
     teamInfo: { canEdit: canEditTeamInfo(role) },
     roleManagement: { canAccess: canManageRoles(role) },
+    reminders: { canCreate: canCreateReminder(role), lockedCategory: ownedCategory(role) },
   };
 }
 

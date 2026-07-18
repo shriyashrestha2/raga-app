@@ -2,7 +2,8 @@ import Foundation
 
 @MainActor
 final class RemindersViewModel: ObservableObject {
-    @Published var topics: [ReminderTopic] = []
+    @Published var reminders: [ReminderItem] = []
+    @Published var selectedCategory: CalendarCategory?
     @Published var isLoading = false
     @Published var errorMessage: String?
 
@@ -10,71 +11,54 @@ final class RemindersViewModel: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         do {
-            topics = try await APIClient.shared.fetchReminderTopics(userId: userId)
+            reminders = try await APIClient.shared.fetchReminders(category: selectedCategory, userId: userId)
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    func addTopic(name: String, userId: String) async {
+    func createReminder(title: String, description: String?, date: Date, type: ReminderKind, category: CalendarCategory, userId: String) async {
         do {
-            let created = try await APIClient.shared.createReminderTopic(name: name, userId: userId)
-            topics.append(created)
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    func deleteTopic(topicId: String, userId: String) async {
-        do {
-            try await APIClient.shared.deleteReminderTopic(id: topicId, userId: userId)
-            topics.removeAll { $0.id == topicId }
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    /// Returns whether the created reminder was also added to the calendar,
-    /// so the caller can decide whether to refresh AppState.calendarEvents.
-    @discardableResult
-    func addReminder(topicId: String, title: String, description: String?, date: Date, addToCalendar: Bool, visibleToRoles: [Role], userId: String) async -> Bool {
-        do {
-            let created = try await APIClient.shared.createReminder(
-                topicId: topicId,
-                title: title,
-                description: description,
-                date: date,
-                addToCalendar: addToCalendar,
-                visibleToRoles: visibleToRoles,
-                userId: userId
+            _ = try await APIClient.shared.createReminder(
+                title: title, description: description, date: date, type: type, category: category, userId: userId
             )
-            if let index = topics.firstIndex(where: { $0.id == topicId }) {
-                var reminders = topics[index].reminders
-                reminders.append(created)
-                reminders.sort { $0.date < $1.date }
-                topics[index] = ReminderTopic(id: topics[index].id, name: topics[index].name, reminders: reminders)
-            }
-            errorMessage = nil
-            return created.addedToCalendar
+            await load(userId: userId)
         } catch {
             errorMessage = error.localizedDescription
-            return false
         }
     }
 
-    func deleteReminder(topicId: String, reminderId: String, userId: String) async {
+    func deleteReminder(id: String, userId: String) async {
         do {
-            try await APIClient.shared.deleteReminder(id: reminderId, userId: userId)
-            if let index = topics.firstIndex(where: { $0.id == topicId }) {
-                let reminders = topics[index].reminders.filter { $0.id != reminderId }
-                topics[index] = ReminderTopic(id: topics[index].id, name: topics[index].name, reminders: reminders)
-            }
-            errorMessage = nil
+            try await APIClient.shared.deleteReminder(id: id, userId: userId)
+            reminders.removeAll { $0.id == id }
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    func rsvp(id: String, response: RsvpResponse, userId: String) async {
+        do {
+            let updated = try await APIClient.shared.rsvpReminder(id: id, response: response, userId: userId)
+            replace(updated)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func setDone(id: String, done: Bool, userId: String) async {
+        do {
+            let updated = try await APIClient.shared.setReminderDone(id: id, done: done, userId: userId)
+            replace(updated)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func replace(_ updated: ReminderItem) {
+        if let index = reminders.firstIndex(where: { $0.id == updated.id }) {
+            reminders[index] = updated
         }
     }
 }

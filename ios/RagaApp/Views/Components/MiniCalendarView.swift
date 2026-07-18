@@ -126,19 +126,23 @@ struct MiniCalendarView: View {
             Text(headerTitle)
                 .font(.subheadline.bold())
             Spacer()
-            HStack(spacing: 4) {
+            HStack(spacing: 10) {
                 Button("Today") { currentDate = Date() }
                     .font(.caption2.bold())
-                Button { shift(-1) } label: {
-                    Image(systemName: "chevron.left")
+                    .foregroundStyle(.primary)
+
+                HStack(spacing: 4) {
+                    Button { shift(-1) } label: {
+                        Image(systemName: "chevron.left")
+                    }
+                    Button { shift(1) } label: {
+                        Image(systemName: "chevron.right")
+                    }
                 }
-                Button { shift(1) } label: {
-                    Image(systemName: "chevron.right")
-                }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.circle)
+                .controlSize(.mini)
             }
-            .buttonStyle(.bordered)
-            .buttonBorderShape(.circle)
-            .controlSize(.mini)
         }
     }
 
@@ -188,9 +192,8 @@ struct MiniCalendarView: View {
                         VStack(spacing: 3) {
                             Text("\(calendar.component(.day, from: date))")
                                 .font(.caption.weight(calendar.isDateInToday(date) ? .bold : .medium))
-                                .foregroundStyle(calendar.isDateInToday(date) ? .white : .primary)
+                                .foregroundStyle(calendar.isDateInToday(date) ? Color("AccentColor") : .primary)
                                 .frame(width: 24, height: 24)
-                                .background(calendar.isDateInToday(date) ? Color("AccentColor") : Color.clear, in: Circle())
 
                             HStack(spacing: 2) {
                                 ForEach(events(on: date).prefix(3)) { event in
@@ -202,7 +205,7 @@ struct MiniCalendarView: View {
                             .frame(height: 6)
                         }
                         .contentShape(Rectangle())
-                        .gesture(dateGesture(for: date))
+                        .simultaneousGesture(dateGesture(for: date))
                     } else {
                         Color.clear.frame(height: 30)
                     }
@@ -222,7 +225,7 @@ struct MiniCalendarView: View {
         VStack(spacing: 4) {
             ForEach(weekDays(containing: currentDate), id: \.self) { date in
                 weekDayRow(date)
-                    .gesture(dateGesture(for: date))
+                    .simultaneousGesture(dateGesture(for: date))
 
                 if date != weekDays(containing: currentDate).last {
                     Divider()
@@ -240,9 +243,8 @@ struct MiniCalendarView: View {
                     .foregroundStyle(.tertiary)
                 Text("\(calendar.component(.day, from: date))")
                     .font(.subheadline.weight(calendar.isDateInToday(date) ? .bold : .medium))
-                    .foregroundStyle(calendar.isDateInToday(date) ? .white : .primary)
+                    .foregroundStyle(calendar.isDateInToday(date) ? Color("AccentColor") : .primary)
                     .frame(width: 26, height: 26)
-                    .background(calendar.isDateInToday(date) ? Color("AccentColor") : Color.clear, in: Circle())
             }
             .frame(width: 40)
 
@@ -349,9 +351,11 @@ struct MiniCalendarView: View {
 
     // MARK: - Shared
 
+    private let legendOrder: [CalendarCategory] = [.captains, .production, .finance, .logistics, .social, .practice]
+
     private var legend: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 6) {
-            ForEach(CalendarCategory.allCases, id: \.self) { category in
+            ForEach(legendOrder, id: \.self) { category in
                 HStack(spacing: 6) {
                     Circle().fill(category.color).frame(width: 8, height: 8)
                     Text(category.label)
@@ -373,12 +377,10 @@ extension CalendarCategory {
         switch self {
         case .finance: return .green
         case .practice: return .blue
+        case .captains: return Color("AccentColor")
         case .production: return .purple
         case .social: return .yellow
-        case .performance: return Color("AccentColor")
         case .logistics: return .orange
-        case .pr: return .pink
-        case .reminder: return .teal
         }
     }
 }

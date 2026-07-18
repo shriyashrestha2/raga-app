@@ -1,6 +1,7 @@
 import { Bot } from "grammy";
 import { prisma } from "../prisma.js";
 import type { UpdateTag } from "@prisma/client";
+import { initialsOf } from "../util/initials.js";
 
 /**
  * Roundup ingestion (PRD §4.1 / §5): a bot added as a member/admin of the
@@ -25,15 +26,6 @@ function detectTag(text: string): UpdateTag {
     if (HASHTAG_TAG[key]) return HASHTAG_TAG[key];
   }
   return "ANNOUNCEMENT";
-}
-
-function initialsOf(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]!.toUpperCase())
-    .join("");
 }
 
 export function startTelegramBot() {
@@ -73,7 +65,7 @@ export function startTelegramBot() {
           data: {
             name: from.first_name + (from.last_name ? ` ${from.last_name}` : ""),
             initials: initialsOf(from.first_name),
-            role: "DANCER",
+            role: "RETURNER",
             telegramId: String(from.id),
           },
         })

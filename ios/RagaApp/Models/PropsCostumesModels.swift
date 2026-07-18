@@ -4,7 +4,7 @@ import Foundation
 //
 // Access is gated per-role via AppState.capabilities.propsCostumes.mode
 // (mirrors backend propsCostumesAccess): "FULL" (Captain/Production),
-// "BUDGET_ONLY" (Finance), "OWN_ASSIGNMENTS_ONLY" (Dancer/Newbie), "NONE"
+// "BUDGET_ONLY" (Finance), "OWN_ASSIGNMENTS_ONLY" (Returner/Newbie), "NONE"
 // (Logistics). See PropsCostumesView.swift for the mode switch.
 
 enum PropCostumeCategoryType: String, Codable {

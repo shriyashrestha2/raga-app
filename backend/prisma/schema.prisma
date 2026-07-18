@@ -13,7 +13,7 @@ enum Role {
   PRODUCTION
   LOGISTICS
   PR
-  DANCER
+  RETURNER
   NEWBIE
 }
 
@@ -31,12 +31,15 @@ enum RsvpResponse {
 enum CalendarCategory {
   FINANCE
   PRACTICE
+  CAPTAINS
   PRODUCTION
   SOCIAL
-  PERFORMANCE
   LOGISTICS
-  PR
-  REMINDER
+}
+
+enum ReminderKind {
+  RSVP
+  TASK
 }
 
 enum AttendanceStatus {
@@ -77,6 +80,21 @@ enum ChoreoReminderKind {
   CHOREO_NOTE
 }
 
+// Onboarding: name + phone go here first, an OTP-style code confirms the
+// phone (dev mode: code is returned by the API / logged instead of sent via
+// real SMS — see backend/README.md), then POST /auth/select-role creates the
+// real User row once a matching role access code is provided. One row per
+// phone; re-requesting a code overwrites it and resets `verified`.
+model PhoneVerification {
+  id        String   @id @default(cuid())
+  phone     String   @unique
+  name      String
+  code      String
+  expiresAt DateTime
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
 model User {
   id                    String   @id @default(cuid())
   name                  String
@@ -84,7 +102,7 @@ model User {
   role                  Role
   telegramId            String?  @unique
   email                 String?
-  phone                 String?
+  phone                 String?  @unique
   year                  String?
   major                 String?
   bio                   String?
@@ -108,8 +126,9 @@ model User {
   practicePlansCreated  PracticePlan[]          @relation("PracticePlanCreatedBy")
   choreoRemindersMade   ChoreoReminder[]        @relation("ChoreoReminderCreatedBy")
   calendarEventsCreated CalendarEvent[]         @relation("CalendarEventCreatedBy")
-  reminderTopics        ReminderTopic[]         @relation("ReminderTopicOwner")
-  reminders             Reminder[]              @relation("ReminderOwner")
+  remindersCreated      Reminder[]              @relation("ReminderCreatedBy")
+  reminderRsvps         ReminderRsvp[]
+  reminderTaskCompletions ReminderTaskCompletion[]
 }
 
 model Update {
@@ -187,7 +206,6 @@ model CalendarEvent {
   updatedAt   DateTime         @updatedAt
 
   attendance  Attendance[]
-  reminder    Reminder?
 }
 
 // Real check-in/attendance, distinct from Rsvp (which is RSVP-intent on
@@ -209,37 +227,55 @@ model Attendance {
   @@unique([eventId, userId])
 }
 
-// Personal reminders (Roundup tab, all roles). Each member organizes their
-// own reminders into named topics; a reminder can optionally also exist as a
-// CalendarEvent (category REMINDER) so it shows up on the shared team
-// calendar. That link is 1:1 and owned by the reminder — deleting the
-// reminder deletes its calendar event too (see routes/reminders.ts).
-model ReminderTopic {
-  id        String   @id @default(cuid())
-  name      String
-  ownerId   String
-  owner     User     @relation("ReminderTopicOwner", fields: [ownerId], references: [id])
-  createdAt DateTime @default(now())
+// Shared team reminders (Roundup tab, all roles see the same list, filterable
+// by category). Only Captains and board positions (Finance/Production/
+// Logistics/PR) can create — non-owned categories (PRACTICE/CAPTAINS) are
+// Captain-only, and board roles are locked to their own owned category (PR's
+// is SOCIAL — see permissions.ts's ownedCategory). Returners/Newbies are
+// read + interact only (RSVP or mark-done), never create. Distinct from
+// CalendarEvent — reminders don't appear on the team calendar, they just
+// reuse its category taxonomy/colors for visual consistency.
+model Reminder {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  date        DateTime
+  category    CalendarCategory
+  type        ReminderKind
+  createdById String
+  createdBy   User         @relation("ReminderCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
-  reminders Reminder[]
-
-  @@unique([ownerId, name])
+  rsvps           ReminderRsvp[]
+  taskCompletions ReminderTaskCompletion[]
 }
 
-model Reminder {
-  id              String         @id @default(cuid())
-  topic           ReminderTopic  @relation(fields: [topicId], references: [id], onDelete: Cascade)
-  topicId         String
-  title           String
-  description     String?
-  date            DateTime
-  addedToCalendar Boolean        @default(false)
-  calendarEventId String?        @unique
-  calendarEvent   CalendarEvent? @relation(fields: [calendarEventId], references: [id])
-  ownerId         String
-  owner           User           @relation("ReminderOwner", fields: [ownerId], references: [id])
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+// One per (reminder, user) — only meaningful when the reminder's type is RSVP.
+model ReminderRsvp {
+  id         String       @id @default(cuid())
+  reminder   Reminder     @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  reminderId String
+  user       User         @relation(fields: [userId], references: [id])
+  userId     String
+  response   RsvpResponse
+  updatedAt  DateTime     @updatedAt
+
+  @@unique([reminderId, userId])
+}
+
+// Row existing = that user marked the task done; only meaningful when the
+// reminder's type is TASK. Unmarking deletes the row rather than storing
+// done=false, so "done count" is just a row count.
+model ReminderTaskCompletion {
+  id          String   @id @default(cuid())
+  reminder    Reminder @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  reminderId  String
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+  completedAt DateTime @default(now())
+
+  @@unique([reminderId, userId])
 }
 
 // Captain-only agenda/timeline planning tool. Distinct from the existing

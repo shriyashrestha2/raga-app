@@ -45,10 +45,10 @@ struct PracticeCardView: View {
                     if let reminder = practice.reminder {
                         Label(reminder, systemImage: "tag.fill")
                             .font(.caption2)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(.cyan)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .background(Color.cyan.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
                 }
                 .padding(14)
@@ -61,7 +61,7 @@ struct PracticeCardView: View {
                 if role == .captain {
                     captainSummary
                 } else {
-                    dancerActions
+                    returnerActions
                 }
             }
             .padding(14)
@@ -86,7 +86,7 @@ struct PracticeCardView: View {
         }
     }
 
-    private var dancerActions: some View {
+    private var returnerActions: some View {
         HStack {
             Text(total > 0 ? "\(practice.rsvpYes) going · \(practice.rsvpNo) not" : "No responses yet")
                 .font(.caption)

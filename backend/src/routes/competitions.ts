@@ -54,7 +54,7 @@ function shapeCompetition(comp: NonNullable<CompetitionWithSections>, role: Role
   if (role === "LOGISTICS") {
     return { ...base, logisticsSection: comp.logisticsSection };
   }
-  // DANCER / NEWBIE: schedule only, no section data whatsoever.
+  // RETURNER / NEWBIE: schedule only, no section data whatsoever.
   return base;
 }
 

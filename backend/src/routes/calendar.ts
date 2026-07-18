@@ -7,8 +7,8 @@ import { canEditCalendarEvent } from "../permissions.js";
 export const calendarRouter = Router();
 calendarRouter.use(requireUser);
 
-const CATEGORIES = ["FINANCE", "PRACTICE", "PRODUCTION", "SOCIAL", "PERFORMANCE", "LOGISTICS", "PR"] as const;
-const ROLES = ["CAPTAIN", "FINANCE", "PRODUCTION", "LOGISTICS", "PR", "DANCER", "NEWBIE"] as const;
+const CATEGORIES = ["FINANCE", "PRACTICE", "CAPTAINS", "PRODUCTION", "SOCIAL", "LOGISTICS"] as const;
+const ROLES = ["CAPTAIN", "FINANCE", "PRODUCTION", "LOGISTICS", "PR", "RETURNER", "NEWBIE"] as const;
 
 function rolesToString(roles: readonly string[] | undefined): string {
   return roles && roles.length ? roles.join(",") : "";
@@ -58,9 +58,9 @@ calendarRouter.post("/", async (req, res) => {
   let { category } = parsed.data;
 
   if (role !== "CAPTAIN") {
-    // Finance/Production/Logistics/PR can only create events tagged to their
+    // Finance/Production/Logistics can only create events tagged to their
     // own role — the client-sent category is overridden, not merely checked.
-    if (role === "FINANCE" || role === "PRODUCTION" || role === "LOGISTICS" || role === "PR") {
+    if (role === "FINANCE" || role === "PRODUCTION" || role === "LOGISTICS") {
       category = role;
     } else {
       return res.status(403).json({ error: "You don't have access to this." });

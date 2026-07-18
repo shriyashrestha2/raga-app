@@ -23,13 +23,14 @@ async function main() {
   await prisma.video.deleteMany();
   await prisma.update.deleteMany();
   await prisma.practice.deleteMany();
+  await prisma.reminderRsvp.deleteMany();
+  await prisma.reminderTaskCompletion.deleteMany();
   await prisma.reminder.deleteMany();
-  await prisma.reminderTopic.deleteMany();
   await prisma.calendarEvent.deleteMany();
   await prisma.user.deleteMany();
 
   // One demo user per role.
-  const [captain, finance, production, logistics, pr, dancer, newbie] = await Promise.all([
+  const [captain, finance, production, logistics, pr, returner, newbie] = await Promise.all([
     prisma.user.create({
       data: { name: "Eesan", initials: "EE", role: "CAPTAIN", email: "eesan@ruraga.org", year: "Senior" },
     }),
@@ -46,7 +47,7 @@ async function main() {
       data: { name: "Siya", initials: "SI", role: "PR", email: "siya@ruraga.org", year: "Sophomore" },
     }),
     prisma.user.create({
-      data: { name: "Krish", initials: "KR", role: "DANCER", email: "krish@ruraga.org", year: "Sophomore" },
+      data: { name: "Krish", initials: "KR", role: "RETURNER", email: "krish@ruraga.org", year: "Sophomore" },
     }),
     prisma.user.create({
       data: { name: "Karan", initials: "KA", role: "NEWBIE", email: "karan@ruraga.org", year: "Freshman" },
@@ -102,7 +103,7 @@ async function main() {
       focus: "AV Day — Full Run-Through",
       reminder: "Boys wear black, girls wear white kurta + red dupatta",
       rsvps: [
-        { user: dancer, response: "NO" as const, reason: "Family commitment out of town" },
+        { user: returner, response: "NO" as const, reason: "Family commitment out of town" },
         { user: newbie, response: "YES" as const },
       ],
     },
@@ -112,7 +113,7 @@ async function main() {
       focus: "Set 3 Formation Drill",
       reminder: null,
       rsvps: [
-        { user: dancer, response: "YES" as const },
+        { user: returner, response: "YES" as const },
         { user: newbie, response: "YES" as const },
       ],
     },
@@ -121,7 +122,7 @@ async function main() {
       location: "Livingston Rec Center, Studio B",
       focus: "Sets 1–3 Polish + Transitions",
       reminder: null,
-      rsvps: [{ user: dancer, response: "NO" as const, reason: "Midterm exam conflict" }],
+      rsvps: [{ user: returner, response: "NO" as const, reason: "Midterm exam conflict" }],
     },
     {
       date: new Date("2026-10-16T18:00:00-04:00"),
@@ -188,7 +189,7 @@ async function main() {
         url: "https://youtube.com/watch?v=dQw4w9WgXcQ",
         thumbnail: "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=480&h=270&fit=crop&auto=format",
         duration: "3:11",
-        uploadedById: dancer.id,
+        uploadedById: returner.id,
       },
       {
         title: "Full Run – Sep 14 Practice",
@@ -202,9 +203,9 @@ async function main() {
     ],
   });
 
-  const calendarEventData: { date: Date; category: "FINANCE" | "PRACTICE" | "PRODUCTION" | "SOCIAL" | "PERFORMANCE" | "LOGISTICS" | "PR"; label: string; createdById?: string }[] = [
+  const calendarEventData: { date: Date; category: "FINANCE" | "PRACTICE" | "CAPTAINS" | "PRODUCTION" | "SOCIAL" | "LOGISTICS"; label: string; createdById?: string }[] = [
     { date: new Date("2026-10-02"), category: "FINANCE", label: "Budget meeting", createdById: finance.id },
-    { date: new Date("2026-10-11"), category: "PR", label: "Instagram takeover post", createdById: pr.id },
+    { date: new Date("2026-10-11"), category: "SOCIAL", label: "Instagram takeover post", createdById: pr.id },
     { date: new Date("2026-10-05"), category: "PRACTICE", label: "AV Day" },
     { date: new Date("2026-10-05"), category: "PRODUCTION", label: "Video shoot", createdById: production.id },
     { date: new Date("2026-10-09"), category: "PRACTICE", label: "Formation drill" },
@@ -214,7 +215,7 @@ async function main() {
     { date: new Date("2026-10-16"), category: "PRODUCTION", label: "Costume fitting", createdById: production.id },
     { date: new Date("2026-10-16"), category: "PRACTICE", label: "Dress rehearsal" },
     { date: new Date("2026-10-17"), category: "LOGISTICS", label: "Travel + carpool confirmation", createdById: logistics.id },
-    { date: new Date("2026-10-18"), category: "PERFORMANCE", label: "Rutgers Day show" },
+    { date: new Date("2026-10-18"), category: "CAPTAINS", label: "Rutgers Day show" },
     { date: new Date("2026-10-20"), category: "SOCIAL", label: "Post-show hangout" },
     { date: new Date("2026-10-23"), category: "PRODUCTION", label: "Recap video edit", createdById: production.id },
     { date: new Date("2026-10-26"), category: "SOCIAL", label: "Bonding event" },
@@ -229,7 +230,7 @@ async function main() {
   const avDayEvent = createdEvents.find((e) => e.label === "AV Day")!;
   await prisma.attendance.createMany({
     data: [
-      { eventId: avDayEvent.id, userId: dancer.id, status: "ABSENT", markedById: captain.id, notes: "Excused — travel" },
+      { eventId: avDayEvent.id, userId: returner.id, status: "ABSENT", markedById: captain.id, notes: "Excused — travel" },
       { eventId: avDayEvent.id, userId: newbie.id, status: "PRESENT", markedById: captain.id },
     ],
   });
@@ -237,7 +238,7 @@ async function main() {
   // Fines: any member can be targeted (incl. Captain), only send/manage access is role-gated.
   await prisma.fine.createMany({
     data: [
-      { userId: dancer.id, amountCents: 500, reason: "Missed AV Day without 48hr notice", issuedById: captain.id, status: "UNPAID" },
+      { userId: returner.id, amountCents: 500, reason: "Missed AV Day without 48hr notice", issuedById: captain.id, status: "UNPAID" },
       { userId: newbie.id, amountCents: 500, reason: "Late to Set 3 drill", issuedById: finance.id, status: "PAID", paidAt: new Date("2026-10-11") },
       { userId: captain.id, amountCents: 1000, reason: "Missed logistics travel-form deadline", issuedById: logistics.id, status: "UNPAID" },
     ],
@@ -245,7 +246,7 @@ async function main() {
 
   await prisma.quota.createMany({
     data: [
-      { userId: dancer.id, label: "Fundraising quota", unit: "USD", targetValue: 150, currentValue: 60, createdById: finance.id, dueDate: new Date("2026-11-01") },
+      { userId: returner.id, label: "Fundraising quota", unit: "USD", targetValue: 150, currentValue: 60, createdById: finance.id, dueDate: new Date("2026-11-01") },
       { userId: newbie.id, label: "Fundraising quota", unit: "USD", targetValue: 100, currentValue: 25, createdById: finance.id, dueDate: new Date("2026-11-01") },
       { userId: production.id, label: "Volunteer hours", unit: "hours", targetValue: 10, currentValue: 4, createdById: captain.id },
     ],
@@ -292,7 +293,7 @@ async function main() {
   });
   await prisma.propCostumeAssignment.createMany({
     data: [
-      { itemId: kurta.id, userId: dancer.id, size: "M", task: "Pick up from vendor by Oct 8", status: "PENDING" },
+      { itemId: kurta.id, userId: returner.id, size: "M", task: "Pick up from vendor by Oct 8", status: "PENDING" },
       { itemId: kurta.id, userId: newbie.id, size: "S", task: "Confirm measurements", status: "DONE" },
     ],
   });
@@ -344,6 +345,74 @@ async function main() {
     },
   });
   void plan;
+
+  const remindersData: {
+    title: string;
+    description?: string;
+    date: Date;
+    category: "FINANCE" | "PRACTICE" | "CAPTAINS" | "PRODUCTION" | "SOCIAL" | "LOGISTICS";
+    type: "RSVP" | "TASK";
+    createdById: string;
+  }[] = [
+    {
+      title: "Dues payment plan meeting",
+      description: "Optional info session for anyone who wants to split dues into installments.",
+      date: new Date("2026-10-06T18:00:00-04:00"),
+      category: "FINANCE",
+      type: "RSVP",
+      createdById: finance.id,
+    },
+    {
+      title: "Submit costume measurements",
+      description: "Needed before the Oct 16 fitting so orders go out on time.",
+      date: new Date("2026-10-08T23:59:00-04:00"),
+      category: "PRODUCTION",
+      type: "TASK",
+      createdById: production.id,
+    },
+    {
+      title: "Confirm carpool signup",
+      description: "Sign up for a ride or offer one for the Oct 18 show.",
+      date: new Date("2026-10-10T23:59:00-04:00"),
+      category: "LOGISTICS",
+      type: "TASK",
+      createdById: logistics.id,
+    },
+    {
+      title: "Team bonding potluck — bringing food?",
+      description: "Let us know if you're signing up for a dish so we don't end up with five bags of chips.",
+      date: new Date("2026-10-26T17:00:00-04:00"),
+      category: "SOCIAL",
+      type: "RSVP",
+      createdById: pr.id,
+    },
+    {
+      title: "Learn the new 8-count for Set 2",
+      description: "Review Meera's breakdown video before Wednesday's drill.",
+      date: new Date("2026-10-08T20:00:00-04:00"),
+      category: "PRACTICE",
+      type: "TASK",
+      createdById: captain.id,
+    },
+    {
+      title: "Attending the leadership sync?",
+      date: new Date("2026-10-13T19:00:00-04:00"),
+      category: "CAPTAINS",
+      type: "RSVP",
+      createdById: captain.id,
+    },
+  ];
+
+  const createdReminders = await Promise.all(
+    remindersData.map((r) => prisma.reminder.create({ data: r }))
+  );
+
+  await prisma.reminderRsvp.create({
+    data: { reminderId: createdReminders[0].id, userId: returner.id, response: "YES" },
+  });
+  await prisma.reminderTaskCompletion.create({
+    data: { reminderId: createdReminders[1].id, userId: returner.id },
+  });
 
   console.log("Seed complete.");
 }

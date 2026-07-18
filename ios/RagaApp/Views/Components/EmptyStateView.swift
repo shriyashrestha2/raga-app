@@ -29,7 +29,7 @@ struct EmptyStateView: View {
                 .multilineTextAlignment(.center)
             if let actionTitle, let action {
                 Button(actionTitle, action: action)
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.borderedProminent)
                     .tint(Color("AccentColor"))
                     .controlSize(.small)
                     .padding(.top, 4)

@@ -7,7 +7,7 @@ import { canPostAnnouncement, type RoleName } from "../permissions.js";
 export const updatesRouter = Router();
 updatesRouter.use(requireUser);
 
-const ROLES = ["CAPTAIN", "FINANCE", "PRODUCTION", "LOGISTICS", "PR", "DANCER", "NEWBIE"] as const;
+const ROLES = ["CAPTAIN", "FINANCE", "PRODUCTION", "LOGISTICS", "PR", "RETURNER", "NEWBIE"] as const;
 
 function rolesToString(roles: readonly string[] | undefined): string {
   return roles && roles.length ? roles.join(",") : "";

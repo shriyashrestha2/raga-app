@@ -28,6 +28,24 @@ struct RootView: View {
     @State private var tab: AppTab = .roundup
 
     var body: some View {
+        Group {
+            if appState.isLoggedIn {
+                loggedInBody
+            } else {
+                OnboardingFlowView()
+            }
+        }
+        .alert("Something went wrong", isPresented: Binding(
+            get: { appState.errorMessage != nil },
+            set: { if !$0 { appState.errorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { appState.errorMessage = nil }
+        } message: {
+            Text(appState.errorMessage ?? "")
+        }
+    }
+
+    private var loggedInBody: some View {
         VStack(spacing: 0) {
             TopHeaderView(title: tab.title)
 
@@ -44,20 +62,13 @@ struct RootView: View {
 
             BottomNavView(tab: $tab)
         }
-        .alert("Something went wrong", isPresented: Binding(
-            get: { appState.errorMessage != nil },
-            set: { if !$0 { appState.errorMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) { appState.errorMessage = nil }
-        } message: {
-            Text(appState.errorMessage ?? "")
-        }
     }
 }
 
 private struct TopHeaderView: View {
     @EnvironmentObject private var appState: AppState
     let title: String
+    @State private var showingLogOutConfirm = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -73,14 +84,8 @@ private struct TopHeaderView: View {
                         .foregroundStyle(.white)
                 }
                 Spacer()
-                Menu {
-                    ForEach(appState.users) { user in
-                        Button {
-                            Task { await appState.switchUser(to: user.id) }
-                        } label: {
-                            Label("\(user.name) · \(user.role.label)", systemImage: user.role.symbol)
-                        }
-                    }
+                Button {
+                    showingLogOutConfirm = true
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: appState.role.symbol)
@@ -101,6 +106,10 @@ private struct TopHeaderView: View {
         .padding(.bottom, 20)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color("AccentColor").ignoresSafeArea(edges: .top))
+        .confirmationDialog("Log out of RU RAGA?", isPresented: $showingLogOutConfirm, titleVisibility: .visible) {
+            Button("Log Out", role: .destructive) { appState.logOut() }
+            Button("Cancel", role: .cancel) {}
+        }
     }
 }
 

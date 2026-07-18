@@ -5,7 +5,7 @@ import SwiftUI
 /// affordance gated by `capabilities.teamInfo.canEdit`; below it, every
 /// member from `appState.users` (already loaded app-wide — not refetched
 /// here) grouped by role. Tapping a member row pushes into
-/// TeamInfoEditView for that member when the viewer can edit; Dancer/Newbie
+/// TeamInfoEditView for that member when the viewer can edit; Returner/Newbie
 /// get a view-only roster, since the server would 403 their PATCH anyway
 /// (backend/src/permissions.ts's canEditTeamInfo).
 ///
@@ -17,7 +17,7 @@ struct TeamRosterView: View {
 
     private var canEdit: Bool { appState.capabilities?.teamInfo.canEdit == true }
 
-    private static let roleOrder: [Role] = [.captain, .finance, .production, .logistics, .dancer, .newbie]
+    private static let roleOrder: [Role] = [.captain, .finance, .production, .logistics, .pr, .returner, .newbie]
 
     private var groupedMembers: [(role: Role, members: [AppUser])] {
         Self.roleOrder.compactMap { role in

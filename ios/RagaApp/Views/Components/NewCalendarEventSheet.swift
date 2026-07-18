@@ -2,8 +2,9 @@ import SwiftUI
 
 /// Sheet for adding a calendar event directly from a long-pressed date,
 /// styled after RemindersSectionView's NewReminderSheet. Category is locked
-/// to the caller's own role for Finance/Production/Logistics (mirrors the
-/// server-side auto-scoping in POST /calendar); Captains pick freely.
+/// to the caller's own role for Finance/Production/Logistics/PR (PR owns
+/// Social — mirrors the server-side auto-scoping in POST /calendar);
+/// Captains pick freely.
 struct NewCalendarEventSheet: View {
     @Environment(\.dismiss) private var dismiss
     let role: Role
@@ -27,8 +28,8 @@ struct NewCalendarEventSheet: View {
         case .finance: return .finance
         case .production: return .production
         case .logistics: return .logistics
-        case .pr: return .pr
-        case .captain, .dancer, .newbie: return nil
+        case .pr: return .social
+        case .captain, .returner, .newbie: return nil
         }
     }
 
@@ -56,7 +57,7 @@ struct NewCalendarEventSheet: View {
                         }
                     } else {
                         Picker("Category", selection: $category) {
-                            ForEach(CalendarCategory.allCases.filter { $0 != .reminder }, id: \.self) { cat in
+                            ForEach(CalendarCategory.allCases, id: \.self) { cat in
                                 Text(cat.label).tag(cat)
                             }
                         }

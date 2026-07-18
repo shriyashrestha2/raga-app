@@ -17,6 +17,7 @@ import { compApplicationsRouter } from "./routes/compApplications.js";
 import { competitionsRouter } from "./routes/competitions.js";
 import { teamInfoRouter } from "./routes/teamInfo.js";
 import { remindersRouter } from "./routes/reminders.js";
+import { authRouter } from "./routes/auth.js";
 import { attachCurrentUser } from "./middleware/currentUser.js";
 import { startTelegramBot } from "./telegram/bot.js";
 
@@ -43,6 +44,7 @@ app.use("/comp-applications", compApplicationsRouter);
 app.use("/competitions", competitionsRouter);
 app.use("/team-info", teamInfoRouter);
 app.use("/reminders", remindersRouter);
+app.use("/auth", authRouter);
 
 const port = Number(process.env.PORT ?? 4000);
 app.listen(port, () => {

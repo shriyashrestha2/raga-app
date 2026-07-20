@@ -27,9 +27,20 @@ extension APIClient {
         return try await post("quotas", body: body, userId: userId)
     }
 
+    /// Only `targetValue` (the dollar/unit amount needed) is editable here —
+    /// `currentValue` is derived server-side from contributions, never set
+    /// directly. Server gates with canManageQuotas.
     @discardableResult
-    func updateQuotaProgress(id: String, currentValue: Double, userId: String) async throws -> QuotaItem {
-        try await patch("quotas/\(id)", body: ["currentValue": currentValue], userId: userId)
+    func updateQuotaTarget(id: String, targetValue: Double, userId: String) async throws -> QuotaItem {
+        try await patch("quotas/\(id)", body: ["targetValue": targetValue], userId: userId)
+    }
+
+    /// Logs one itemized entry toward a quota (event/source + amount) and
+    /// bumps `currentValue` by the same amount server-side, in one
+    /// transaction. Server gates with canManageQuotas.
+    @discardableResult
+    func createQuotaContribution(quotaId: String, event: String, amount: Double, userId: String) async throws -> QuotaItem {
+        try await post("quotas/\(quotaId)/contributions", body: ["event": event, "amount": amount], userId: userId)
     }
 
     func deleteQuota(id: String, userId: String) async throws {

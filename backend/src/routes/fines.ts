@@ -34,6 +34,8 @@ const createFineSchema = z.object({
   userId: z.string().min(1),
   amountCents: z.number().int().positive(),
   reason: z.string().min(1),
+  status: z.enum(["UNPAID", "PAID", "WAIVED"]).optional(),
+  issuedAt: z.coerce.date().optional(),
 });
 
 finesRouter.post("/", async (req, res) => {
@@ -56,6 +58,9 @@ finesRouter.post("/", async (req, res) => {
       amountCents: parsed.data.amountCents,
       reason: parsed.data.reason,
       issuedById: req.currentUser!.id,
+      status: parsed.data.status,
+      issuedAt: parsed.data.issuedAt,
+      paidAt: parsed.data.status === "PAID" ? (parsed.data.issuedAt ?? new Date()) : undefined,
     },
     include: { user: true, issuedBy: true },
   });

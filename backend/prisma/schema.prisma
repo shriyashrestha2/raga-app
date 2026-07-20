@@ -110,25 +110,27 @@ model User {
   emergencyContactPhone String?
   createdAt             DateTime @default(now())
 
-  updates               Update[]
-  rsvps                 Rsvp[]
-  videos                Video[]
-  attendanceRecords     Attendance[]            @relation("AttendanceSubject")
-  attendanceMarkedBy    Attendance[]            @relation("AttendanceMarkedBy")
-  fines                 Fine[]                  @relation("FineTarget")
-  finesIssued           Fine[]                  @relation("FineIssuedBy")
-  quotas                Quota[]                 @relation("QuotaSubject")
-  quotasCreated         Quota[]                 @relation("QuotaCreatedBy")
-  compApplicationsMade  CompApplication[]       @relation("CompAppCreatedBy")
-  compApplicationsFor   CompApplication[]       @relation("CompAppAssignedTo")
-  propsCostumesCreated  PropCostumeItem[]       @relation("PropCostumeCreatedBy")
-  propsCostumesAssigned PropCostumeAssignment[]
-  practicePlansCreated  PracticePlan[]          @relation("PracticePlanCreatedBy")
-  choreoRemindersMade   ChoreoReminder[]        @relation("ChoreoReminderCreatedBy")
-  calendarEventsCreated CalendarEvent[]         @relation("CalendarEventCreatedBy")
-  remindersCreated      Reminder[]              @relation("ReminderCreatedBy")
-  reminderRsvps         ReminderRsvp[]
+  updates                 Update[]
+  rsvps                   Rsvp[]
+  videos                  Video[]
+  attendanceRecords       Attendance[]             @relation("AttendanceSubject")
+  attendanceMarkedBy      Attendance[]             @relation("AttendanceMarkedBy")
+  fines                   Fine[]                   @relation("FineTarget")
+  finesIssued             Fine[]                   @relation("FineIssuedBy")
+  quotas                  Quota[]                  @relation("QuotaSubject")
+  quotasCreated           Quota[]                  @relation("QuotaCreatedBy")
+  compApplicationsMade    CompApplication[]        @relation("CompAppCreatedBy")
+  compApplicationsFor     CompApplication[]        @relation("CompAppAssignedTo")
+  propsCostumesCreated    PropCostumeItem[]        @relation("PropCostumeCreatedBy")
+  propsCostumesAssigned   PropCostumeAssignment[]
+  practicePlansCreated    PracticePlan[]           @relation("PracticePlanCreatedBy")
+  choreoRemindersMade     ChoreoReminder[]         @relation("ChoreoReminderCreatedBy")
+  calendarEventsCreated   CalendarEvent[]          @relation("CalendarEventCreatedBy")
+  remindersCreated        Reminder[]               @relation("ReminderCreatedBy")
+  reminderRsvps           ReminderRsvp[]
   reminderTaskCompletions ReminderTaskCompletion[]
+  fundsLogged             Fund[]                   @relation("FundCreatedBy")
+  quotaContributionsMade  QuotaContribution[]      @relation("QuotaContributionCreatedBy")
 }
 
 model Update {
@@ -190,22 +192,22 @@ model Video {
 }
 
 model CalendarEvent {
-  id          String           @id @default(cuid())
-  date        DateTime
-  category    CalendarCategory
-  label       String
-  description String?
+  id             String           @id @default(cuid())
+  date           DateTime
+  category       CalendarCategory
+  label          String
+  description    String?
   // Comma-separated Role values gating who can see this event (e.g.
   // "FINANCE,CAPTAIN"); empty string means visible to every role. SQLite has
   // no native array/enum-array column, so this is joined/split in
   // src/routes/calendar.ts rather than modeled as a relation.
-  visibleToRoles String         @default("")
-  createdById String?
-  createdBy   User?            @relation("CalendarEventCreatedBy", fields: [createdById], references: [id])
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  visibleToRoles String           @default("")
+  createdById    String?
+  createdBy      User?            @relation("CalendarEventCreatedBy", fields: [createdById], references: [id])
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
-  attendance  Attendance[]
+  attendance Attendance[]
 }
 
 // Real check-in/attendance, distinct from Rsvp (which is RSVP-intent on
@@ -236,16 +238,16 @@ model Attendance {
 // CalendarEvent — reminders don't appear on the team calendar, they just
 // reuse its category taxonomy/colors for visual consistency.
 model Reminder {
-  id          String       @id @default(cuid())
+  id          String           @id @default(cuid())
   title       String
   description String?
   date        DateTime
   category    CalendarCategory
   type        ReminderKind
   createdById String
-  createdBy   User         @relation("ReminderCreatedBy", fields: [createdById], references: [id])
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  createdBy   User             @relation("ReminderCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   rsvps           ReminderRsvp[]
   taskCompletions ReminderTaskCompletion[]
@@ -281,15 +283,15 @@ model ReminderTaskCompletion {
 // Captain-only agenda/timeline planning tool. Distinct from the existing
 // Practice/Rsvp headcount tool, which stays visible to every role.
 model PracticePlan {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   practice    Practice? @relation(fields: [practiceId], references: [id])
   practiceId  String?
   title       String
   date        DateTime
   createdById String
-  createdBy   User     @relation("PracticePlanCreatedBy", fields: [createdById], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdBy   User      @relation("PracticePlanCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   agendaItems PracticeAgendaItem[]
 }
@@ -331,7 +333,7 @@ model PropCostumeItem {
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 
-  assignments     PropCostumeAssignment[]
+  assignments PropCostumeAssignment[]
 }
 
 model PropCostumeAssignment {
@@ -372,12 +374,33 @@ model Quota {
   label        String
   unit         String
   targetValue  Float
+  // Derived: always equal to the sum of `contributions.amount`. Progress is
+  // itemized (each contribution names the event/source it came from) rather
+  // than a single manually-adjusted number — see routes/quotas.ts's
+  // POST /:id/contributions, the only way currentValue changes.
   currentValue Float     @default(0)
   dueDate      DateTime?
   createdById  String
   createdBy    User      @relation("QuotaCreatedBy", fields: [createdById], references: [id])
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+
+  contributions QuotaContribution[]
+}
+
+// One itemized entry toward a quota's progress (e.g. "Bake Sale — $45").
+// Finance chairs/Captains log these as money (or hours, etc.) comes in;
+// Quota.currentValue is kept as their running sum rather than being set
+// directly, so a member's quota card can always show what it's made of.
+model QuotaContribution {
+  id          String   @id @default(cuid())
+  quota       Quota    @relation(fields: [quotaId], references: [id], onDelete: Cascade)
+  quotaId     String
+  event       String
+  amount      Float
+  createdById String
+  createdBy   User     @relation("QuotaContributionCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
 }
 
 model CompApplication {
@@ -396,11 +419,11 @@ model CompApplication {
 }
 
 model Competition {
-  id         String   @id @default(cuid())
-  name       String
-  date       DateTime
-  location   String?
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  name      String
+  date      DateTime
+  location  String?
+  createdAt DateTime @default(now())
 
   financeSection    CompFinanceSection?
   productionSection CompProductionSection?
@@ -445,6 +468,36 @@ model CompScheduleItem {
   time          DateTime
   label         String
   notes         String?
+}
+
+// Fundraising: a single logged contribution toward the team total. `source`
+// is a free-text label (fundraiser, sponsor, etc.) — grouped client-side for
+// the breakdown chart rather than modeled as its own lookup table, matching
+// how Fine.reason is a free string rather than an enum.
+model Fund {
+  id          String   @id @default(cuid())
+  amountCents Int
+  source      String
+  dateAdded   DateTime
+  createdById String
+  createdBy   User     @relation("FundCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+// The editable list of standard offenses shown in the Fines Tracker. Most
+// offenses have a fixed `amountCents`; a few (see team-app-prd.md /
+// the Finance tab spec) don't have one fixed number — those store a
+// plain-text `description` of the rule instead and leave `amountCents` null,
+// which signals the client to leave the new-fine Amount field blank rather
+// than auto-filling it.
+model FineScheduleItem {
+  id          String   @id @default(cuid())
+  offense     String
+  amountCents Int?
+  description String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model TeamInfo {

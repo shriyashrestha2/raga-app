@@ -113,6 +113,8 @@ struct Capabilities: Codable {
     let propsCostumes: PropsCostumesCapability
     let fines: ManageAnyCapability
     let quotas: ManageAnyCapability
+    let fundraising: ManageAnyCapability
+    let fineSchedule: ManageAnyCapability
     let compApplications: AccessOnly
     let competitionDashboard: CompetitionDashboardCapability
     let teamInfo: TeamInfoCapability

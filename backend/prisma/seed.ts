@@ -10,6 +10,9 @@ async function main() {
   await prisma.propCostumeAssignment.deleteMany();
   await prisma.propCostumeItem.deleteMany();
   await prisma.fine.deleteMany();
+  await prisma.fineScheduleItem.deleteMany();
+  await prisma.fund.deleteMany();
+  await prisma.quotaContribution.deleteMany();
   await prisma.quota.deleteMany();
   await prisma.compApplication.deleteMany();
   await prisma.compScheduleItem.deleteMany();
@@ -244,13 +247,121 @@ async function main() {
     ],
   });
 
-  await prisma.quota.createMany({
+  await prisma.fund.createMany({
     data: [
-      { userId: returner.id, label: "Fundraising quota", unit: "USD", targetValue: 150, currentValue: 60, createdById: finance.id, dueDate: new Date("2026-11-01") },
-      { userId: newbie.id, label: "Fundraising quota", unit: "USD", targetValue: 100, currentValue: 25, createdById: finance.id, dueDate: new Date("2026-11-01") },
-      { userId: production.id, label: "Volunteer hours", unit: "hours", targetValue: 10, currentValue: 4, createdById: captain.id },
+      { amountCents: 85000, source: "Fall Bake Sale", dateAdded: new Date("2026-09-12"), createdById: finance.id },
+      { amountCents: 150000, source: "Alumni Sponsor — Patel Family", dateAdded: new Date("2026-09-20"), createdById: finance.id },
+      { amountCents: 42000, source: "Dining Hall Percentage Night", dateAdded: new Date("2026-10-01"), createdById: finance.id },
+      { amountCents: 60000, source: "Member Dues", dateAdded: new Date("2026-10-08"), createdById: finance.id },
+      { amountCents: 22500, source: "Instagram Fundraiser Post", dateAdded: new Date("2026-10-15"), createdById: finance.id },
     ],
   });
+
+  // Fine schedule: the team's standard offense list. Four offenses don't
+  // have one fixed dollar figure (Summer video scales by days late, Props
+  // productivity isn't finalized, both Concessions fines depend on an
+  // external Gourmet Dining charge) — those store a plain-text `description`
+  // of the rule instead of `amountCents`, which signals the client to leave
+  // the new-fine Amount field blank rather than auto-filling it.
+  const fineScheduleData: { offense: string; amountCents?: number; description?: string }[] = [
+    { offense: "Late to Practice", amountCents: 500 },
+    { offense: "No Show to Practice", amountCents: 1000 },
+    { offense: "Not Submitting Practice Video (Winter)", amountCents: 4000 },
+    {
+      offense: "Not Submitting Practice Video on Time (Summer)",
+      description: "$10 base fine, plus $5 for each additional day late",
+    },
+    { offense: "Late to Props", amountCents: 500 },
+    { offense: "No Show to Props", amountCents: 1000 },
+    {
+      offense: "Significant Lack of Productivity During Props",
+      description: "Amount not yet finalized — flag for admin review before enforcing",
+    },
+    { offense: "Late to a Fundraiser", amountCents: 500 },
+    { offense: "No Show to a Fundraiser", amountCents: 2000 },
+    { offense: "Late to Concessions", description: "Fine amount set by Gourmet Dining, not fixed" },
+    {
+      offense: "No Show to Concessions",
+      description: "$60, or the fine amount set by Gourmet Dining, whichever applies",
+    },
+    { offense: "Late to Photoshoot", amountCents: 500 },
+    { offense: "Late to a Social Event", amountCents: 500 },
+    { offense: "No Show to a Social Event", amountCents: 2000 },
+    { offense: "Missed or Late Social Media Repost", amountCents: 500 },
+    { offense: "Late Response to a Poll or Task", amountCents: 500 },
+    { offense: "Missed Reminder", amountCents: 500 },
+    { offense: "Failure to Keep Information Up to Date", amountCents: 500 },
+    { offense: "Missed Deadline", amountCents: 500 },
+    { offense: "Failure to Enforce a Fine Within 48 Hours", amountCents: 500 },
+    { offense: "Confidentiality Breach", amountCents: 1500 },
+  ];
+  await prisma.fineScheduleItem.createMany({
+    data: fineScheduleData.map((item, index) => ({
+      offense: item.offense,
+      amountCents: item.amountCents ?? null,
+      description: item.description ?? null,
+      order: index,
+    })),
+  });
+
+  // currentValue is derived from contributions (see routes/quotas.ts), so
+  // each seeded quota's contributions are created to sum to its currentValue.
+  const quotaSeeds: {
+    userId: string;
+    label: string;
+    unit: string;
+    targetValue: number;
+    createdById: string;
+    dueDate?: Date;
+    contributions: { event: string; amount: number }[];
+  }[] = [
+    {
+      userId: returner.id,
+      label: "Fundraising quota",
+      unit: "USD",
+      targetValue: 150,
+      createdById: finance.id,
+      dueDate: new Date("2026-11-01"),
+      contributions: [
+        { event: "Bake Sale table shift", amount: 35 },
+        { event: "Dues installment", amount: 25 },
+      ],
+    },
+    {
+      userId: newbie.id,
+      label: "Fundraising quota",
+      unit: "USD",
+      targetValue: 100,
+      createdById: finance.id,
+      dueDate: new Date("2026-11-01"),
+      contributions: [{ event: "Instagram fundraiser shoutout", amount: 25 }],
+    },
+    {
+      userId: production.id,
+      label: "Volunteer hours",
+      unit: "hours",
+      targetValue: 10,
+      createdById: captain.id,
+      contributions: [{ event: "Costume fitting setup", amount: 4 }],
+    },
+  ];
+  for (const q of quotaSeeds) {
+    const currentValue = q.contributions.reduce((sum, c) => sum + c.amount, 0);
+    await prisma.quota.create({
+      data: {
+        userId: q.userId,
+        label: q.label,
+        unit: q.unit,
+        targetValue: q.targetValue,
+        currentValue,
+        createdById: q.createdById,
+        dueDate: q.dueDate,
+        contributions: {
+          create: q.contributions.map((c) => ({ event: c.event, amount: c.amount, createdById: q.createdById })),
+        },
+      },
+    });
+  }
 
   await prisma.compApplication.createMany({
     data: [

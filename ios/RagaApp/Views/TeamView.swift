@@ -1,5 +1,19 @@
 import SwiftUI
 
+enum TeamTab: String, CaseIterable, Identifiable {
+    case operations, finance, production, team
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .operations: return "Operations"
+        case .finance: return "Finance"
+        case .production: return "Production"
+        case .team: return "Team"
+        }
+    }
+}
+
 /// Role-filtered menu of destinations, extending the app's existing
 /// hand-rolled tab nav rather than introducing a new paradigm. Each row is
 /// gated by `appState.capabilities` (server-resolved, never a client-side
@@ -7,95 +21,96 @@ import SwiftUI
 /// render, rather than showing a locked placeholder.
 ///
 /// This is the one tab with its own NavigationStack; the other three stay
-/// flat. New subsystem rows (Fines, Quotas, Props & Costumes, Comp
-/// Applications, Competition Dashboard, Team Roster, Role Management) are
-/// added here as each subsystem lands — see the plan's Milestone 2 join
-/// points.
+/// flat. Sub-tabs (Operations/Finance/Production/Team) mirror RoundupView's
+/// segmented-picker pattern — the old single List with 4 Sections is now 4
+/// per-tab Lists (Finance instead renders inline dashboard content, see
+/// FinanceTabView, rather than a list of NavigationLinks).
 struct TeamView: View {
     @EnvironmentObject private var appState: AppState
+    @State private var tab: TeamTab = .operations
 
     var body: some View {
         NavigationStack {
-            List {
-                Section("Operations") {
-                    NavigationLink {
-                        AttendanceEventPickerView()
-                    } label: {
-                        MenuRow(icon: "checklist", title: "Attendance", subtitle: "Check in team members at events")
-                    }
-
-                    if appState.capabilities?.practicePlanner.canAccess == true {
-                        NavigationLink {
-                            PracticePlannerView()
-                        } label: {
-                            MenuRow(icon: "calendar.badge.clock", title: "Practice Planner", subtitle: "Agenda + timeline for practices")
-                        }
-                    }
+            VStack(spacing: 0) {
+                Picker("", selection: $tab) {
+                    ForEach(TeamTab.allCases) { Text($0.title).tag($0) }
                 }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
 
-                Section("Finance") {
-                    NavigationLink {
-                        FinesView()
-                    } label: {
-                        MenuRow(
-                            icon: "dollarsign.circle",
-                            title: "Fines",
-                            subtitle: appState.capabilities?.fines.canManageAny == true ? "Send + manage fines" : "Your fines"
-                        )
-                    }
-
-                    NavigationLink {
-                        QuotasView()
-                    } label: {
-                        MenuRow(
-                            icon: "chart.bar.fill",
-                            title: "Quotas",
-                            subtitle: appState.capabilities?.quotas.canManageAny == true ? "Manage member quotas" : "Your quota"
-                        )
-                    }
-                }
-
-                Section("Production") {
-                    if appState.capabilities?.propsCostumes.mode != "NONE" {
-                        NavigationLink {
-                            PropsCostumesView()
-                        } label: {
-                            MenuRow(icon: "tshirt.fill", title: "Props & Costumes", subtitle: "Tasks, sizing, rentals, status")
-                        }
-                    }
-
-                    if appState.capabilities?.compApplications.canAccess == true {
-                        NavigationLink {
-                            CompApplicationsView()
-                        } label: {
-                            MenuRow(icon: "doc.text.magnifyingglass", title: "Comp Applications", subtitle: "Packet submissions + deadlines")
-                        }
-                    }
-
-                    NavigationLink {
-                        CompetitionDashboardView()
-                    } label: {
-                        MenuRow(icon: "trophy.fill", title: "Competition Dashboard", subtitle: "Schedule + role sections")
-                    }
-                }
-
-                Section("Team") {
-                    NavigationLink {
-                        TeamRosterView()
-                    } label: {
-                        MenuRow(icon: "person.3.fill", title: "Team Roster", subtitle: "Team info + member contacts")
-                    }
-
-                    if appState.capabilities?.roleManagement.canAccess == true {
-                        NavigationLink {
-                            RoleManagementView()
-                        } label: {
-                            MenuRow(icon: "person.badge.key.fill", title: "Role Management", subtitle: "Assign member roles")
-                        }
+                Group {
+                    switch tab {
+                    case .operations: operationsList
+                    case .finance: FinanceTabView()
+                    case .production: productionList
+                    case .team: teamList
                     }
                 }
             }
             .navigationTitle("Team")
+        }
+    }
+
+    private var operationsList: some View {
+        List {
+            NavigationLink {
+                AttendanceEventPickerView()
+            } label: {
+                MenuRow(icon: "checklist", title: "Attendance", subtitle: "Check in team members at events")
+            }
+
+            if appState.capabilities?.practicePlanner.canAccess == true {
+                NavigationLink {
+                    PracticePlannerView()
+                } label: {
+                    MenuRow(icon: "calendar.badge.clock", title: "Practice Planner", subtitle: "Agenda + timeline for practices")
+                }
+            }
+        }
+    }
+
+    private var productionList: some View {
+        List {
+            if appState.capabilities?.propsCostumes.mode != "NONE" {
+                NavigationLink {
+                    PropsCostumesView()
+                } label: {
+                    MenuRow(icon: "tshirt.fill", title: "Props & Costumes", subtitle: "Tasks, sizing, rentals, status")
+                }
+            }
+
+            if appState.capabilities?.compApplications.canAccess == true {
+                NavigationLink {
+                    CompApplicationsView()
+                } label: {
+                    MenuRow(icon: "doc.text.magnifyingglass", title: "Comp Applications", subtitle: "Packet submissions + deadlines")
+                }
+            }
+
+            NavigationLink {
+                CompetitionDashboardView()
+            } label: {
+                MenuRow(icon: "trophy.fill", title: "Competition Dashboard", subtitle: "Schedule + role sections")
+            }
+        }
+    }
+
+    private var teamList: some View {
+        List {
+            NavigationLink {
+                TeamRosterView()
+            } label: {
+                MenuRow(icon: "person.3.fill", title: "Team Roster", subtitle: "Team info + member contacts")
+            }
+
+            if appState.capabilities?.roleManagement.canAccess == true {
+                NavigationLink {
+                    RoleManagementView()
+                } label: {
+                    MenuRow(icon: "person.badge.key.fill", title: "Role Management", subtitle: "Assign member roles")
+                }
+            }
         }
     }
 }

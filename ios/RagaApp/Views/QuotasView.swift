@@ -32,9 +32,15 @@ struct QuotasView: View {
                         QuotaCardView(
                             quota: quota,
                             canManage: canManage,
-                            onUpdateProgress: { newValue in
+                            unpaidFineCents: viewModel.unpaidFineCents(for: quota.userId),
+                            unpaidFineCount: viewModel.unpaidFineCount(for: quota.userId),
+                            onAddContribution: { event, amount in
                                 guard let userId = appState.currentUserId else { return }
-                                Task { await viewModel.updateProgress(quotaId: quota.id, currentValue: newValue, userId: userId) }
+                                Task { await viewModel.addContribution(quotaId: quota.id, event: event, amount: amount, userId: userId) }
+                            },
+                            onUpdateTarget: { newTarget in
+                                guard let userId = appState.currentUserId else { return }
+                                Task { await viewModel.updateTarget(quotaId: quota.id, targetValue: newTarget, userId: userId) }
                             },
                             onDelete: {
                                 guard let userId = appState.currentUserId else { return }

@@ -32,6 +32,14 @@ export function canManageQuotas(role: RoleName): boolean {
   return role === "CAPTAIN" || role === "FINANCE";
 }
 
+export function canManageFundraising(role: RoleName): boolean {
+  return role === "CAPTAIN" || role === "FINANCE";
+}
+
+export function canManageFineSchedule(role: RoleName): boolean {
+  return role === "CAPTAIN" || role === "FINANCE";
+}
+
 export function canAccessCompApplications(role: RoleName): boolean {
   return role === "CAPTAIN" || role === "LOGISTICS";
 }
@@ -178,6 +186,8 @@ export interface Capabilities {
   propsCostumes: { mode: PropsCostumesMode };
   fines: { canManageAny: boolean };
   quotas: { canManageAny: boolean };
+  fundraising: { canManageAny: boolean };
+  fineSchedule: { canManageAny: boolean };
   compApplications: { canAccess: boolean };
   competitionDashboard: { editableSection: CompSection | "ALL" | null; canViewSchedule: boolean };
   teamInfo: { canEdit: boolean };
@@ -199,6 +209,8 @@ export function buildCapabilities(role: RoleName): Capabilities {
     propsCostumes: { mode: propsCostumesAccess(role) },
     fines: { canManageAny: canManageFines(role) },
     quotas: { canManageAny: canManageQuotas(role) },
+    fundraising: { canManageAny: canManageFundraising(role) },
+    fineSchedule: { canManageAny: canManageFineSchedule(role) },
     compApplications: { canAccess: canAccessCompApplications(role) },
     competitionDashboard: { editableSection: editableCompSection(role), canViewSchedule: true },
     teamInfo: { canEdit: canEditTeamInfo(role) },

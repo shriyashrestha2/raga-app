@@ -103,6 +103,7 @@ struct Capabilities: Codable {
     struct CompetitionDashboardCapability: Codable { let editableSection: String?; let canViewSchedule: Bool }
     struct TeamInfoCapability: Codable { let canEdit: Bool }
     struct RemindersCapability: Codable { let canCreate: Bool; let lockedCategory: CalendarCategory? }
+    struct NotificationsCapability: Codable { let canDeleteAny: Bool }
 
     let calendar: CalendarCapability
     let attendance: AttendanceCapability
@@ -120,6 +121,7 @@ struct Capabilities: Codable {
     let teamInfo: TeamInfoCapability
     let roleManagement: AccessOnly
     let reminders: RemindersCapability
+    let notifications: NotificationsCapability
 }
 
 struct MeResponse: Codable {

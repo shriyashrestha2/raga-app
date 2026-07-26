@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../prisma.js";
 import { requireUser } from "../middleware/currentUser.js";
-import { canCreateReminder, ownedCategory } from "../permissions.js";
+import { canCreateReminder, isBoardRole, ownedCategory } from "../permissions.js";
 import type { Prisma } from "@prisma/client";
 
 // Shared team reminders — everyone sees the same filterable list; only
@@ -92,8 +92,7 @@ remindersRouter.post("/", async (req, res) => {
 remindersRouter.delete("/:id", async (req, res) => {
   const reminder = await prisma.reminder.findUnique({ where: { id: req.params.id } });
   if (!reminder) return res.status(404).json({ error: "Reminder not found" });
-  const role = req.currentUser!.role;
-  if (role !== "CAPTAIN" && reminder.createdById !== req.currentUser!.id) {
+  if (!isBoardRole(req.currentUser!.role)) {
     return res.status(403).json({ error: "You don't have access to this." });
   }
   await prisma.reminder.delete({ where: { id: reminder.id } });

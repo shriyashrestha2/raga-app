@@ -159,7 +159,7 @@ private struct WelcomeStepView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
             }
             .padding(20)
-            .background(Color(.systemGroupedBackground))
+            .background(Color("AppBackground"))
         }
         .ignoresSafeArea(edges: .top)
     }
@@ -226,7 +226,7 @@ private struct DetailsStepView: View {
                 .padding(20)
             }
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color("AppBackground"))
     }
 
     private static func formatPhone(_ raw: String) -> String {
@@ -327,7 +327,7 @@ private struct CodeStepView: View {
                 .padding(20)
             }
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color("AppBackground"))
         .onAppear { focusedIndex = 0 }
     }
 
@@ -406,7 +406,7 @@ private struct RoleStepView: View {
                 .padding(.bottom, 20)
             }
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color("AppBackground"))
     }
 }
 

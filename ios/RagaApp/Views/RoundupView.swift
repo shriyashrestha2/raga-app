@@ -1,20 +1,24 @@
 import SwiftUI
 
 enum RoundupTab: String, CaseIterable, Identifiable {
-    case calendar, reminders
+    case calendar, notifications
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .calendar: return "Calendar"
-        case .reminders: return "Reminders"
+        case .notifications: return "Notifications"
         }
     }
 }
 
 struct RoundupView: View {
     @EnvironmentObject private var appState: AppState
-    @State private var tab: RoundupTab = .calendar
+    @State private var tab: RoundupTab = .notifications
+    /// Owned here (not by the Calendar/Notifications children) so both tabs
+    /// share one live copy of reminders + dismissed state — clearing an
+    /// item in either tab updates both immediately.
+    @StateObject private var notificationsStore = NotificationsStore()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -30,8 +34,9 @@ struct RoundupView: View {
                     switch tab {
                     case .calendar:
                         MiniCalendarView(events: appState.calendarEvents)
-                    case .reminders:
-                        RemindersSectionView()
+                        TopRemindersWidgetView(store: notificationsStore)
+                    case .notifications:
+                        NotificationsSectionView(store: notificationsStore)
                     }
                 }
                 .padding(16)

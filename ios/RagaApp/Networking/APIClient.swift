@@ -122,6 +122,10 @@ final class APIClient {
         return try await post("updates", body: body, userId: userId)
     }
 
+    func deleteUpdate(id: String, userId: String) async throws {
+        try await delete("updates/\(id)", userId: userId)
+    }
+
     func fetchPractices(userId: String) async throws -> [PracticeItem] {
         try await get("practices", userId: userId)
     }

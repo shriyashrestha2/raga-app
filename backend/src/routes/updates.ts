@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../prisma.js";
 import { requireUser } from "../middleware/currentUser.js";
-import { canPostAnnouncement, type RoleName } from "../permissions.js";
+import { canPostAnnouncement, isBoardRole, type RoleName } from "../permissions.js";
 
 export const updatesRouter = Router();
 updatesRouter.use(requireUser);
@@ -77,4 +77,14 @@ updatesRouter.post("/", async (req, res) => {
     include: { author: true },
   });
   res.status(201).json(serializeUpdate(update));
+});
+
+updatesRouter.delete("/:id", async (req, res) => {
+  const update = await prisma.update.findUnique({ where: { id: req.params.id } });
+  if (!update) return res.status(404).json({ error: "Update not found" });
+  if (!isBoardRole(req.currentUser!.role)) {
+    return res.status(403).json({ error: "You don't have access to this." });
+  }
+  await prisma.update.delete({ where: { id: update.id } });
+  res.status(204).end();
 });

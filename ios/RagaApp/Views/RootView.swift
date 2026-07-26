@@ -58,7 +58,7 @@ struct RootView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(.systemGroupedBackground))
+            .background(Color("AppBackground"))
 
             BottomNavView(tab: $tab)
         }

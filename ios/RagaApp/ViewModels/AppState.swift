@@ -143,6 +143,17 @@ final class AppState: ObservableObject {
         }
     }
 
+    func deleteUpdate(id: String) async {
+        guard let userId = currentUserId else { return }
+        do {
+            try await APIClient.shared.deleteUpdate(id: id, userId: userId)
+            updates.removeAll { $0.id == id }
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func loadVideos() async {
         guard let userId = currentUserId else { return }
         do {

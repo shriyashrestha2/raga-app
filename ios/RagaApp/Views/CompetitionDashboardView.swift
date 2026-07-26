@@ -40,7 +40,7 @@ struct CompetitionDashboardView: View {
                 }
                 .padding(16)
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Color("AppBackground"))
             .refreshable { await load() }
             .navigationTitle("Competitions")
             .navigationBarTitleDisplayMode(.inline)
@@ -166,7 +166,7 @@ private struct CompetitionDetailView: View {
             }
             .padding(16)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Color("AppBackground"))
         .navigationTitle(competition?.name ?? "Competition")
         .navigationBarTitleDisplayMode(.inline)
     }

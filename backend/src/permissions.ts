@@ -116,6 +116,14 @@ export function canCreateReminder(role: RoleName): boolean {
   return role === "CAPTAIN" || role === "FINANCE" || role === "PRODUCTION" || role === "LOGISTICS" || role === "PR";
 }
 
+/** Any board position (Captain or Finance/Production/Logistics/PR) can
+ * delete any notification — reminder or announcement, pinned or not,
+ * regardless of who created it. Returners/Newbies can never delete,
+ * matching their lack of create access. */
+export function isBoardRole(role: RoleName): boolean {
+  return role === "CAPTAIN" || role === "FINANCE" || role === "PRODUCTION" || role === "LOGISTICS" || role === "PR";
+}
+
 /** `createdById`/`currentUserId` are only relevant for categories with no
  * role owner (currently just REMINDER, personal-reminder-linked events) —
  * the creator can always edit/delete their own event regardless of role. */
@@ -193,6 +201,7 @@ export interface Capabilities {
   teamInfo: { canEdit: boolean };
   roleManagement: { canAccess: boolean };
   reminders: { canCreate: boolean; lockedCategory: CategoryName | null };
+  notifications: { canDeleteAny: boolean };
 }
 
 export function buildCapabilities(role: RoleName): Capabilities {
@@ -216,6 +225,7 @@ export function buildCapabilities(role: RoleName): Capabilities {
     teamInfo: { canEdit: canEditTeamInfo(role) },
     roleManagement: { canAccess: canManageRoles(role) },
     reminders: { canCreate: canCreateReminder(role), lockedCategory: ownedCategory(role) },
+    notifications: { canDeleteAny: isBoardRole(role) },
   };
 }
 

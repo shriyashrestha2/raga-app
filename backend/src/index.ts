@@ -1,4 +1,6 @@
 import "dotenv/config";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import express from "express";
 import cors from "cors";
 import { updatesRouter } from "./routes/updates.js";
@@ -23,9 +25,12 @@ import { authRouter } from "./routes/auth.js";
 import { attachCurrentUser } from "./middleware/currentUser.js";
 import { startTelegramBot } from "./telegram/bot.js";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 app.use(attachCurrentUser);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));

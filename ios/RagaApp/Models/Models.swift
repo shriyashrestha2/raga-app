@@ -176,7 +176,16 @@ struct VideoItem: Codable, Identifiable {
     let url: String
     let thumbnail: String?
     let duration: String?
+    let pinned: Bool
+    let pinLabel: String?
     let uploadedBy: AppUser
+
+    /// `url` is a relative path served by our own backend (e.g.
+    /// `/uploads/videos/<id>.mp4`), not an external link — resolve it
+    /// against the API's base URL for in-app playback.
+    var resolvedURL: URL? {
+        URL(string: url, relativeTo: APIClient.shared.baseURL)?.absoluteURL
+    }
 }
 
 struct CalendarEventItem: Codable, Identifiable {

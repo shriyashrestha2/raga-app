@@ -154,57 +154,8 @@ async function main() {
     }
   }
 
-  await prisma.video.createMany({
-    data: [
-      {
-        title: "Set 1 – New Intro Count Breakdown",
-        set: "Set 1",
-        competition: "Rutgers Day",
-        date: new Date("2026-10-01"),
-        url: "https://youtube.com/watch?v=dQw4w9WgXcQ",
-        thumbnail: "https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=480&h=270&fit=crop&auto=format",
-        duration: "4:22",
-        uploadedById: production.id,
-      },
-      {
-        title: "Full Run – Sep 28 Practice",
-        set: "Full Run",
-        competition: "Rutgers Day",
-        date: new Date("2026-09-28"),
-        url: "https://youtube.com/watch?v=dQw4w9WgXcQ",
-        thumbnail: "https://images.unsplash.com/photo-1547153760-18fc86324498?w=480&h=270&fit=crop&auto=format",
-        duration: "9:08",
-        uploadedById: captain.id,
-      },
-      {
-        title: "Set 3 – Formation Sweep Reference",
-        set: "Set 3",
-        date: new Date("2026-09-25"),
-        url: "https://youtube.com/watch?v=dQw4w9WgXcQ",
-        thumbnail: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=480&h=270&fit=crop&auto=format",
-        duration: "2:45",
-        uploadedById: captain.id,
-      },
-      {
-        title: "Set 2 – Arm Isolation Timing",
-        set: "Set 2",
-        date: new Date("2026-09-20"),
-        url: "https://youtube.com/watch?v=dQw4w9WgXcQ",
-        thumbnail: "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=480&h=270&fit=crop&auto=format",
-        duration: "3:11",
-        uploadedById: returner.id,
-      },
-      {
-        title: "Full Run – Sep 14 Practice",
-        set: "Full Run",
-        date: new Date("2026-09-14"),
-        url: "https://youtube.com/watch?v=dQw4w9WgXcQ",
-        thumbnail: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=480&h=270&fit=crop&auto=format",
-        duration: "8:54",
-        uploadedById: production.id,
-      },
-    ],
-  });
+  // No seeded videos: real content now comes from in-app uploads (see
+  // routes/videos.ts) rather than YouTube placeholder links.
 
   const calendarEventData: { date: Date; category: "FINANCE" | "PRACTICE" | "CAPTAINS" | "PRODUCTION" | "SOCIAL" | "LOGISTICS"; label: string; createdById?: string }[] = [
     { date: new Date("2026-10-02"), category: "FINANCE", label: "Budget meeting", createdById: finance.id },

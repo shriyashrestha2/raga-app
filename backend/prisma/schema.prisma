@@ -186,6 +186,11 @@ model Video {
   url          String
   thumbnail    String?
   duration     String?
+  pinned       Boolean  @default(false)
+  // Required whenever pinned == true; enforced at the API layer since
+  // Prisma/SQLite can't express a conditional NOT NULL constraint (same
+  // pattern as Rsvp.reason above).
+  pinLabel     String?
   uploadedBy   User     @relation(fields: [uploadedById], references: [id])
   uploadedById String
   createdAt    DateTime @default(now())

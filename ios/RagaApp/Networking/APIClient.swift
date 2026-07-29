@@ -134,6 +134,80 @@ final class APIClient {
         try await get("videos", query: set == "All" ? [:] : ["set": set], userId: userId)
     }
 
+    /// Builds a multipart/form-data request. `post`/`patch` above only speak
+    /// JSON, so uploads (the video file itself) need this instead.
+    private func multipartRequest(
+        _ path: String,
+        fields: [String: String],
+        fileField: String,
+        fileData: Data,
+        fileName: String,
+        mimeType: String,
+        userId: String?
+    ) -> URLRequest {
+        var request = URLRequest(url: baseURL.appendingPathComponent(path))
+        request.httpMethod = "POST"
+        if let userId {
+            request.setValue(userId, forHTTPHeaderField: "x-user-id")
+        }
+        let boundary = "Boundary-\(UUID().uuidString)"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+        var body = Data()
+        for (key, value) in fields {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(key)\"\r\n\r\n".data(using: .utf8)!)
+            body.append("\(value)\r\n".data(using: .utf8)!)
+        }
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"\(fileField)\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
+        body.append(fileData)
+        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+
+        request.httpBody = body
+        return request
+    }
+
+    @discardableResult
+    func uploadVideo(
+        title: String,
+        set: String,
+        competition: String?,
+        duration: String?,
+        pinned: Bool,
+        pinLabel: String?,
+        fileData: Data,
+        fileName: String,
+        mimeType: String,
+        userId: String
+    ) async throws -> VideoItem {
+        var fields: [String: String] = ["title": title, "set": set, "pinned": pinned ? "true" : "false"]
+        if let competition, !competition.isEmpty { fields["competition"] = competition }
+        if let duration, !duration.isEmpty { fields["duration"] = duration }
+        if pinned, let pinLabel { fields["pinLabel"] = pinLabel }
+
+        let request = multipartRequest(
+            "videos",
+            fields: fields,
+            fileField: "file",
+            fileData: fileData,
+            fileName: fileName,
+            mimeType: mimeType,
+            userId: userId
+        )
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try Self.validate(response, data: data)
+        return try decoder.decode(VideoItem.self, from: data)
+    }
+
+    @discardableResult
+    func setVideoPin(id: String, pinned: Bool, pinLabel: String?, userId: String) async throws -> VideoItem {
+        var body: [String: Any] = ["pinned": pinned]
+        if let pinLabel { body["pinLabel"] = pinLabel }
+        return try await patch("videos/\(id)", body: body, userId: userId)
+    }
+
     func fetchCalendarEvents(userId: String) async throws -> [CalendarEventItem] {
         try await get("calendar", userId: userId)
     }

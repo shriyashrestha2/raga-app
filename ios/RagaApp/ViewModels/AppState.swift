@@ -163,6 +163,54 @@ final class AppState: ObservableObject {
         }
     }
 
+    @discardableResult
+    func createVideo(
+        title: String,
+        set: String,
+        competition: String?,
+        duration: String?,
+        pinned: Bool,
+        pinLabel: String?,
+        fileData: Data,
+        fileName: String,
+        mimeType: String
+    ) async -> Bool {
+        guard let userId = currentUserId else { return false }
+        do {
+            _ = try await APIClient.shared.uploadVideo(
+                title: title,
+                set: set,
+                competition: competition,
+                duration: duration,
+                pinned: pinned,
+                pinLabel: pinLabel,
+                fileData: fileData,
+                fileName: fileName,
+                mimeType: mimeType,
+                userId: userId
+            )
+            // Reload rather than insert locally so ordering (pinned-first,
+            // then date) stays server-driven, matching submitRsvp's pattern.
+            await loadVideos()
+            errorMessage = nil
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    func togglePinVideo(id: String, pinned: Bool, pinLabel: String?) async {
+        guard let userId = currentUserId else { return }
+        do {
+            try await APIClient.shared.setVideoPin(id: id, pinned: pinned, pinLabel: pinLabel, userId: userId)
+            await loadVideos()
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func submitRsvp(practiceId: String, response: RsvpResponse, reason: String?) async {
         guard let userId = currentUserId else { return }
         do {

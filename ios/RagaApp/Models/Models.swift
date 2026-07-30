@@ -130,6 +130,9 @@ struct Capabilities: Codable {
     let videos: VideosCapability
     let practicePlanner: AccessOnly
     let choreoReminders: AccessOnly
+    /// Used by both the Chat composer and the Announcements composer's
+    /// "Draft with AI" button — not chat-specific, so it's top-level.
+    let aiAssistant: AccessOnly
     let propsCostumes: PropsCostumesCapability
     let fines: ViewManageCapability
     let quotas: ViewManageCapability

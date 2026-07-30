@@ -16,6 +16,7 @@ struct ChatView: View {
     @State private var photoPickerItems: [PhotosPickerItem] = []
     @State private var showFileImporter = false
     @State private var showPinnedSheet = false
+    @State private var showAIAssistant = false
     @State private var scrollTarget: String?
     @FocusState private var composerFocused: Bool
     /// Mirrors `composerFocused` up to RootView so it can hide the bottom
@@ -64,6 +65,12 @@ struct ChatView: View {
             PinnedMessagesSheet(messages: viewModel.pinnedMessages) { message in
                 showPinnedSheet = false
                 scrollTarget = message.id
+            }
+        }
+        .sheet(isPresented: $showAIAssistant) {
+            AIAssistantSheet { message in
+                draft = message
+                composerFocused = true
             }
         }
         .alert("Something went wrong", isPresented: Binding(
@@ -184,6 +191,16 @@ struct ChatView: View {
                         .foregroundStyle(.secondary)
                 }
                 .disabled(pendingAttachments.count >= maxAttachments)
+
+                if appState.capabilities?.aiAssistant.canAccess == true {
+                    Button {
+                        showAIAssistant = true
+                    } label: {
+                        Image(systemName: "sparkles")
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                    }
+                }
 
                 Button {
                     showEmojiPicker = true

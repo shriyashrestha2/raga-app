@@ -23,6 +23,7 @@ import { teamInfoRouter } from "./routes/teamInfo.js";
 import { remindersRouter } from "./routes/reminders.js";
 import { authRouter } from "./routes/auth.js";
 import { chatRouter } from "./routes/chat.js";
+import { aiRouter } from "./routes/ai.js";
 import { attachCurrentUser } from "./middleware/currentUser.js";
 import { startTelegramBot } from "./telegram/bot.js";
 import { startFineReminderScheduler } from "./scheduler.js";
@@ -57,6 +58,7 @@ app.use("/team-info", teamInfoRouter);
 app.use("/reminders", remindersRouter);
 app.use("/auth", authRouter);
 app.use("/chat", chatRouter);
+app.use("/ai", aiRouter);
 
 const port = Number(process.env.PORT ?? 4000);
 app.listen(port, () => {

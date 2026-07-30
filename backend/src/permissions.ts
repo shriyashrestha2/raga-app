@@ -131,6 +131,13 @@ export function canPinChatMessage(role: RoleName): boolean {
   return isBoardRole(role);
 }
 
+/** The AI announcement-drafting assistant is a board tool (for writing
+ * official team communications), same bar as pinning/deleting — everyone can
+ * still post/react in Chat without it. */
+export function canUseAiAssistant(role: RoleName): boolean {
+  return isBoardRole(role);
+}
+
 /** `createdById`/`currentUserId` are only relevant for categories with no
  * role owner (currently just REMINDER, personal-reminder-linked events) —
  * the creator can always edit/delete their own event regardless of role. */
@@ -198,6 +205,10 @@ export interface Capabilities {
   videos: { canUpload: true };
   practicePlanner: { canAccess: boolean };
   choreoReminders: { canAccess: boolean };
+  // Used by both the Chat composer and the Announcements composer's
+  // "Draft with AI" button — kept top-level rather than nested under `chat`
+  // since it isn't chat-specific.
+  aiAssistant: { canAccess: boolean };
   propsCostumes: { mode: PropsCostumesMode };
   // Board roles (Captain/Finance/Production/Logistics/PR) can view every
   // record in these finance-area domains; everyone else falls back to
@@ -228,6 +239,7 @@ export function buildCapabilities(role: RoleName): Capabilities {
     videos: { canUpload: true },
     practicePlanner: { canAccess: canAccessPracticePlanner(role) },
     choreoReminders: { canAccess: canAccessChoreoReminders(role) },
+    aiAssistant: { canAccess: canUseAiAssistant(role) },
     propsCostumes: { mode: propsCostumesAccess(role) },
     fines: { canViewAny: isBoardRole(role), canManageAny: canManageFines(role) },
     quotas: { canViewAny: isBoardRole(role), canManageAny: canManageQuotas(role) },

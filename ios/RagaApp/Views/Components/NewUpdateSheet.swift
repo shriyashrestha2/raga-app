@@ -3,9 +3,11 @@ import SwiftUI
 /// Sheet for posting a new team update/announcement, styled after
 /// NewReminderSheet. `audienceRole` (which non-Captain "own channel" this
 /// posts under) is auto-scoped server-side from the poster's role — this
-/// sheet only exposes content, pinning, and the shared "Visible to" viewer
-/// restriction.
+/// sheet exposes content, pinning, the shared "Visible to" viewer
+/// restriction, and (board roles only) a "Draft with AI" helper that fills
+/// `content` from rough notes — see AIAssistantSheet.
 struct NewUpdateSheet: View {
+    @EnvironmentObject private var appState: AppState
     @Environment(\.dismiss) private var dismiss
     let onCreate: (UpdateTag, String, Bool, [Role]) -> Void
 
@@ -13,6 +15,7 @@ struct NewUpdateSheet: View {
     @State private var content: String = ""
     @State private var pinned = false
     @State private var visibilitySelection: Set<Role> = []
+    @State private var showAIAssistant = false
 
     private var isValid: Bool {
         !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -30,6 +33,14 @@ struct NewUpdateSheet: View {
                     TextField("What's the update?", text: $content, axis: .vertical)
                         .lineLimit(3...6)
                     Toggle("Pin to top", isOn: $pinned)
+
+                    if appState.capabilities?.aiAssistant.canAccess == true {
+                        Button {
+                            showAIAssistant = true
+                        } label: {
+                            Label("Draft with AI", systemImage: "sparkles")
+                        }
+                    }
                 }
 
                 VisibilityRoleSection(selection: $visibilitySelection)
@@ -44,6 +55,11 @@ struct NewUpdateSheet: View {
                         dismiss()
                     }
                     .disabled(!isValid)
+                }
+            }
+            .sheet(isPresented: $showAIAssistant) {
+                AIAssistantSheet { message in
+                    content = message
                 }
             }
         }

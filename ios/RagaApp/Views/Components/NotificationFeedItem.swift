@@ -70,6 +70,13 @@ enum NotificationFeedItem: Identifiable {
         return false
     }
 
+    /// Drives the bell icon — announcements are broadcasts to the whole team,
+    /// distinct from reminders (tasks/RSVPs), which never show it.
+    var isAnnouncement: Bool {
+        if case .announcement = self { return true }
+        return false
+    }
+
     /// Underlying instant used for both display ("Oct 5") and "Coming Up"
     /// scoring — a reminder's due date, or an announcement's post time.
     var sortDate: Date {

@@ -36,6 +36,11 @@ struct NotificationCardView: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 6) {
+                        if item.isAnnouncement {
+                            Image(systemName: "bell.fill")
+                                .font(.caption2)
+                                .foregroundStyle(category.color)
+                        }
                         if item.pinned {
                             Text("PINNED")
                                 .font(.caption2.bold())
@@ -84,7 +89,7 @@ struct NotificationCardView: View {
         .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(Color(.separator), lineWidth: 0.5))
-        .confirmationDialog("Delete this reminder?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+        .confirmationDialog("Delete this notification?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
             Button("Delete", role: .destructive) { onDelete?() }
             Button("Cancel", role: .cancel) {}
         }

@@ -45,6 +45,23 @@ struct NotificationsSectionView: View {
         }
     }
 
+    private struct DateGroup: Identifiable {
+        let date: Date
+        let items: [NotificationFeedItem]
+        var id: Date { date }
+    }
+
+    /// Grouped by calendar day and sorted newest-to-oldest — a date header
+    /// only appears for a day that has at least one item in the current
+    /// filter, since this groups `filteredItems`, not `allItems`.
+    private var dateGroups: [DateGroup] {
+        let calendar = Calendar.current
+        let byDay = Dictionary(grouping: filteredItems) { calendar.startOfDay(for: $0.sortDate) }
+        return byDay
+            .map { DateGroup(date: $0.key, items: $0.value.sorted { $0.sortDate > $1.sortDate }) }
+            .sorted { $0.date > $1.date }
+    }
+
     var body: some View {
         VStack(spacing: 12) {
             if canCreateReminder {
@@ -99,8 +116,17 @@ struct NotificationsSectionView: View {
                     actionTitle: nil
                 ) {}
             } else {
-                ForEach(filteredItems) { item in
-                    row(for: item)
+                VStack(spacing: 20) {
+                    ForEach(dateGroups) { group in
+                        VStack(alignment: .leading, spacing: 12) {
+                            dateHeader(group.date)
+                            VStack(spacing: 12) {
+                                ForEach(group.items) { item in
+                                    row(for: item)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -166,6 +192,13 @@ struct NotificationsSectionView: View {
     private func load() async {
         guard let userId = appState.currentUserId else { return }
         await store.load(userId: userId)
+    }
+
+    private func dateHeader(_ date: Date) -> some View {
+        Text(date.formatted(.dateTime.month(.abbreviated).day()))
+            .font(.subheadline.bold())
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 2)
     }
 
     private var filterRow: some View {
@@ -301,7 +334,7 @@ private struct NewReminderSheet: View {
                 .padding(20)
             }
             .background(Color("AppBackground"))
-            .navigationTitle("New Reminder")
+            .navigationTitle("New Notification")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

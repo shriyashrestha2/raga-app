@@ -1,11 +1,13 @@
 import SwiftUI
 
-/// Quota list — managers (Captain/Finance only, a smaller set than
-/// fines-management) see and manage everyone's quota progress; every other
-/// role sees only their own, read-only (they can view but never update
-/// their own progress — that's a manager action). Server-side filtering is
-/// authoritative (see backend/src/routes/quotas.ts); the `canManageAny`
-/// capability flag here only drives which controls render.
+/// Quota list — Captain/Finance manage everyone's quota progress; board
+/// roles (Production/Logistics/PR) can view everyone's but not edit; every
+/// other role sees only their own, read-only (they can view but never
+/// update their own progress — that's a manager action). Server-side
+/// filtering is authoritative (see backend/src/routes/quotas.ts); the
+/// `canManageAny`/`canViewAny` capability flags here only drive which
+/// controls render. Rendered inline as one of TeamView's segmented tabs
+/// rather than pushed, so it deliberately has no navigationTitle of its own.
 struct QuotasView: View {
     @EnvironmentObject private var appState: AppState
     @StateObject private var viewModel = QuotasViewModel()
@@ -52,8 +54,6 @@ struct QuotasView: View {
             }
             .padding(16)
         }
-        .navigationTitle("Quotas")
-        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if canManage {
                 ToolbarItem(placement: .primaryAction) {

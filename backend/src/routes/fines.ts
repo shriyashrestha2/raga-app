@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../prisma.js";
 import { requireUser } from "../middleware/currentUser.js";
-import { canManageFines } from "../permissions.js";
+import { canManageFines, isBoardRole } from "../permissions.js";
 
 export const finesRouter = Router();
 finesRouter.use(requireUser);
@@ -12,10 +12,10 @@ finesRouter.get("/", async (req, res) => {
   const currentUserId = req.currentUser!.id;
   const queryUserId = typeof req.query.userId === "string" ? req.query.userId : undefined;
 
-  // Managers may optionally filter by any target user's id; everyone else is
-  // force-filtered to their own fines regardless of what they pass in the
-  // query string — the client-sent userId is never trusted for non-managers.
-  const where = canManageFines(role)
+  // Board roles may optionally filter by any target user's id; everyone else
+  // is force-filtered to their own fines regardless of what they pass in the
+  // query string — the client-sent userId is never trusted for non-board.
+  const where = isBoardRole(role)
     ? queryUserId
       ? { userId: queryUserId }
       : {}
@@ -36,6 +36,7 @@ const createFineSchema = z.object({
   reason: z.string().min(1),
   status: z.enum(["UNPAID", "PAID", "WAIVED"]).optional(),
   issuedAt: z.coerce.date().optional(),
+  dueDate: z.coerce.date().optional(),
 });
 
 finesRouter.post("/", async (req, res) => {
@@ -60,9 +61,23 @@ finesRouter.post("/", async (req, res) => {
       issuedById: req.currentUser!.id,
       status: parsed.data.status,
       issuedAt: parsed.data.issuedAt,
+      dueDate: parsed.data.dueDate,
       paidAt: parsed.data.status === "PAID" ? (parsed.data.issuedAt ?? new Date()) : undefined,
     },
     include: { user: true, issuedBy: true },
+  });
+
+  // dueDate is stored as a UTC-midnight, date-only value — format it in UTC
+  // so it doesn't shift a day back for servers running west of UTC.
+  const dueDateNote = fine.dueDate ? ` Due ${fine.dueDate.toLocaleDateString("en-US", { timeZone: "UTC" })}.` : "";
+  await prisma.update.create({
+    data: {
+      authorId: req.currentUser!.id,
+      tag: "FINANCE",
+      content: `You've been issued a fine of ${(fine.amountCents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" })} for ${fine.reason}.${dueDateNote}`,
+      targetUserId: fine.userId,
+      relatedFineId: fine.id,
+    },
   });
 
   res.status(201).json(fine);

@@ -17,9 +17,9 @@ final class FinesViewModel: ObservableObject {
         }
     }
 
-    func createFine(targetUserId: String, amountCents: Int, reason: String, status: FineStatus? = nil, issuedAt: Date? = nil, userId: String) async {
+    func createFine(targetUserId: String, amountCents: Int, reason: String, status: FineStatus? = nil, issuedAt: Date? = nil, dueDate: Date? = nil, userId: String) async {
         do {
-            try await APIClient.shared.createFine(targetUserId: targetUserId, amountCents: amountCents, reason: reason, status: status, issuedAt: issuedAt, userId: userId)
+            try await APIClient.shared.createFine(targetUserId: targetUserId, amountCents: amountCents, reason: reason, status: status, issuedAt: issuedAt, dueDate: dueDate, userId: userId)
             await load(userId: userId)
         } catch {
             errorMessage = error.localizedDescription

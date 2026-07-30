@@ -23,7 +23,7 @@ struct NewUpdateSheet: View {
             Form {
                 Section("Update") {
                     Picker("Type", selection: $tag) {
-                        ForEach(UpdateTag.allCases, id: \.self) { t in
+                        ForEach(UpdateTag.userCreatable, id: \.self) { t in
                             Text(t.label).tag(t)
                         }
                     }

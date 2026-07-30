@@ -11,10 +11,11 @@ extension APIClient {
     }
 
     @discardableResult
-    func createFine(targetUserId: String, amountCents: Int, reason: String, status: FineStatus? = nil, issuedAt: Date? = nil, userId: String) async throws -> FineItem {
+    func createFine(targetUserId: String, amountCents: Int, reason: String, status: FineStatus? = nil, issuedAt: Date? = nil, dueDate: Date? = nil, userId: String) async throws -> FineItem {
         var body: [String: Any] = ["userId": targetUserId, "amountCents": amountCents, "reason": reason]
         if let status { body["status"] = status.rawValue }
         if let issuedAt { body["issuedAt"] = ISO8601DateFormatter().string(from: issuedAt) }
+        if let dueDate { body["dueDate"] = ISO8601DateFormatter().string(from: dueDate) }
         return try await post("fines", body: body, userId: userId)
     }
 

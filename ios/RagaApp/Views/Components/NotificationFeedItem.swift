@@ -23,6 +23,7 @@ enum NotificationFeedItem: Identifiable {
             case .announcement: return .captains
             case .costumeLogistics: return .production
             case .choreoNotes: return .captains
+            case .finance: return .finance
             }
         }
     }

@@ -46,14 +46,21 @@ enum UpdateTag: String, Codable, CaseIterable {
     case announcement = "ANNOUNCEMENT"
     case costumeLogistics = "COSTUME_LOGISTICS"
     case choreoNotes = "CHOREO_NOTES"
+    case finance = "FINANCE"
 
     var label: String {
         switch self {
         case .announcement: return "Announcement"
         case .costumeLogistics: return "Costume & Logistics"
         case .choreoNotes: return "Choreo Notes"
+        case .finance: return "Finance"
         }
     }
+
+    /// System-generated only (fund logged, fine issued/reminder) — excluded
+    /// from the compose picker in NewUpdateSheet since the server's
+    /// createUpdateSchema doesn't accept it as a user-postable tag either.
+    static let userCreatable: [UpdateTag] = [.announcement, .costumeLogistics, .choreoNotes]
 }
 
 enum RsvpResponse: String, Codable {
@@ -107,7 +114,10 @@ struct Capabilities: Codable {
     struct VideosCapability: Codable { let canUpload: Bool }
     struct AccessOnly: Codable { let canAccess: Bool }
     struct PropsCostumesCapability: Codable { let mode: String }
-    struct ManageAnyCapability: Codable { let canManageAny: Bool }
+    /// Board roles can view every record in the domain; everyone else can
+    /// still see their own quota/fine (fundraising has no "own record" for
+    /// non-board members to fall back to). Only canManageAny gates create/edit.
+    struct ViewManageCapability: Codable { let canViewAny: Bool; let canManageAny: Bool }
     struct CompetitionDashboardCapability: Codable { let editableSection: String?; let canViewSchedule: Bool }
     struct TeamInfoCapability: Codable { let canEdit: Bool }
     struct RemindersCapability: Codable { let canCreate: Bool; let lockedCategory: CalendarCategory? }
@@ -121,10 +131,10 @@ struct Capabilities: Codable {
     let practicePlanner: AccessOnly
     let choreoReminders: AccessOnly
     let propsCostumes: PropsCostumesCapability
-    let fines: ManageAnyCapability
-    let quotas: ManageAnyCapability
-    let fundraising: ManageAnyCapability
-    let fineSchedule: ManageAnyCapability
+    let fines: ViewManageCapability
+    let quotas: ViewManageCapability
+    let fundraising: ViewManageCapability
+    let fineSchedule: ViewManageCapability
     let compApplications: AccessOnly
     let competitionDashboard: CompetitionDashboardCapability
     let teamInfo: TeamInfoCapability

@@ -20,8 +20,11 @@ function rolesFromString(value: string): string[] {
 // Empty visibleToRoles means every role can see the update; otherwise the
 // viewer's role must be explicitly included. Distinct from audienceRole,
 // which only scopes who is allowed to *post* to a non-Captain's own channel.
-function canViewUpdate(role: string, visibleToRoles: string): boolean {
-  const roles = rolesFromString(visibleToRoles);
+// A set targetUserId (fund/fine notifications) overrides all of that — it's
+// a personal notification, visible only to that one recipient.
+function canViewUpdate(currentUserId: string, role: string, update: { visibleToRoles: string; targetUserId: string | null }): boolean {
+  if (update.targetUserId) return update.targetUserId === currentUserId;
+  const roles = rolesFromString(update.visibleToRoles);
   return roles.length === 0 || roles.includes(role);
 }
 
@@ -31,11 +34,12 @@ function serializeUpdate<T extends { visibleToRoles: string }>(update: T) {
 
 updatesRouter.get("/", async (req, res) => {
   const role = req.currentUser!.role;
+  const currentUserId = req.currentUser!.id;
   const updates = await prisma.update.findMany({
     include: { author: true },
     orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
   });
-  res.json(updates.filter((u) => canViewUpdate(role, u.visibleToRoles)).map(serializeUpdate));
+  res.json(updates.filter((u) => canViewUpdate(currentUserId, role, u)).map(serializeUpdate));
 });
 
 const createUpdateSchema = z.object({

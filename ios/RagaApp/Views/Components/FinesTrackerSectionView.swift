@@ -1,11 +1,11 @@
 import SwiftUI
 
-/// Fines Tracker section of the Finance tab: team-wide summary numbers, a
-/// per-offense breakdown chart, a log-new-fine form, and the editable fine
-/// schedule. Reuses the existing Fines API/permission model (managers per
-/// Capabilities.fines see + log every member's fines; everyone else sees
-/// only their own, server-filtered) — this view is a richer, inline
-/// presentation of the same data FinesView shows, not a separate data model.
+/// Fines Tracker tab: team-wide summary numbers, a per-offense breakdown
+/// chart, a log-new-fine form, and the editable fine schedule. Reuses the
+/// existing Fines API/permission model — board roles (per
+/// Capabilities.fines.canViewAny) see everyone's fines, Captain/Finance
+/// additionally log/edit them, and everyone else sees only their own,
+/// server-filtered.
 struct FinesTrackerSectionView: View {
     @EnvironmentObject private var appState: AppState
     @StateObject private var finesViewModel = FinesViewModel()
@@ -75,7 +75,7 @@ struct FinesTrackerSectionView: View {
             await loadSchedule()
         }
         .sheet(isPresented: $showingNewFine) {
-            NewFineEntrySheet(users: appState.users, schedule: scheduleViewModel.entries) { targetUserId, reason, issuedAt, amountCents, status in
+            NewFineEntrySheet(users: appState.users, schedule: scheduleViewModel.entries) { targetUserId, reason, issuedAt, amountCents, status, dueDate in
                 guard let userId = appState.currentUserId else { return }
                 Task {
                     await finesViewModel.createFine(
@@ -84,6 +84,7 @@ struct FinesTrackerSectionView: View {
                         reason: reason,
                         status: status,
                         issuedAt: issuedAt,
+                        dueDate: dueDate,
                         userId: userId
                     )
                 }
@@ -133,7 +134,7 @@ private struct NewFineEntrySheet: View {
     @Environment(\.dismiss) private var dismiss
     let users: [AppUser]
     let schedule: [FineScheduleEntry]
-    let onCreate: (String, String, Date, Int, FineStatus) -> Void
+    let onCreate: (String, String, Date, Int, FineStatus, Date?) -> Void
 
     @State private var selectedUserId: String?
     @State private var selectedOffenseId: String?
@@ -141,6 +142,8 @@ private struct NewFineEntrySheet: View {
     @State private var issuedAt: Date = Date()
     @State private var amountText: String = ""
     @State private var status: FineStatus = .unpaid
+    @State private var includesDueDate = false
+    @State private var dueDate: Date = Date()
 
     private var selectedEntry: FineScheduleEntry? {
         schedule.first(where: { $0.id == selectedOffenseId })
@@ -221,6 +224,16 @@ private struct NewFineEntrySheet: View {
                     }
                     .pickerStyle(.segmented)
                 }
+
+                Section("Due Date") {
+                    Toggle("Set a due date", isOn: $includesDueDate)
+                    if includesDueDate {
+                        DatePicker("Due", selection: $dueDate, displayedComponents: .date)
+                        Text("They'll get a daily reminder until this date.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
             .navigationTitle("New Fine")
             .navigationBarTitleDisplayMode(.inline)
@@ -229,7 +242,7 @@ private struct NewFineEntrySheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Send") {
                         guard let selectedUserId, let amountCents else { return }
-                        onCreate(selectedUserId, reason, issuedAt, amountCents, status)
+                        onCreate(selectedUserId, reason, issuedAt, amountCents, status, includesDueDate ? dueDate : nil)
                         dismiss()
                     }
                     .disabled(!isValid)

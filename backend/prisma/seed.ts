@@ -195,7 +195,7 @@ async function main() {
   // Fines: any member can be targeted (incl. Captain), only send/manage access is role-gated.
   await prisma.fine.createMany({
     data: [
-      { userId: returner.id, amountCents: 500, reason: "Missed AV Day without 48hr notice", issuedById: captain.id, status: "UNPAID" },
+      { userId: returner.id, amountCents: 500, reason: "Missed AV Day without 48hr notice", issuedById: captain.id, status: "UNPAID", dueDate: new Date("2026-08-13") },
       { userId: newbie.id, amountCents: 500, reason: "Late to Set 3 drill", issuedById: finance.id, status: "PAID", paidAt: new Date("2026-10-11") },
       { userId: captain.id, amountCents: 1000, reason: "Missed logistics travel-form deadline", issuedById: logistics.id, status: "UNPAID" },
     ],
@@ -248,6 +248,7 @@ async function main() {
     { offense: "Missed Deadline", amountCents: 500 },
     { offense: "Failure to Enforce a Fine Within 48 Hours", amountCents: 500 },
     { offense: "Confidentiality Breach", amountCents: 1500 },
+    { offense: "Late Payment of Remaining Fundraising Quota", amountCents: 500 },
   ];
   await prisma.fineScheduleItem.createMany({
     data: fineScheduleData.map((item, index) => ({
@@ -273,9 +274,9 @@ async function main() {
       userId: returner.id,
       label: "Fundraising quota",
       unit: "USD",
-      targetValue: 150,
+      targetValue: 200,
       createdById: finance.id,
-      dueDate: new Date("2026-11-01"),
+      dueDate: new Date("2026-12-20"),
       contributions: [
         { event: "Bake Sale table shift", amount: 35 },
         { event: "Dues installment", amount: 25 },
@@ -285,9 +286,9 @@ async function main() {
       userId: newbie.id,
       label: "Fundraising quota",
       unit: "USD",
-      targetValue: 100,
+      targetValue: 150,
       createdById: finance.id,
-      dueDate: new Date("2026-11-01"),
+      dueDate: new Date("2026-12-20"),
       contributions: [{ event: "Instagram fundraiser shoutout", amount: 25 }],
     },
     {

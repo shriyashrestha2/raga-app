@@ -2,16 +2,19 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../prisma.js";
 import { requireUser } from "../middleware/currentUser.js";
-import { canManageQuotas } from "../permissions.js";
+import { canManageQuotas, isBoardRole } from "../permissions.js";
 
 export const quotasRouter = Router();
 quotasRouter.use(requireUser);
 
+// Board roles see everyone's quota (optionally filtered to one member);
+// everyone else is force-filtered to their own, same as before this field
+// existed for non-managers.
 quotasRouter.get("/", async (req, res) => {
   const role = req.currentUser!.role;
   const requestedUserId = typeof req.query.userId === "string" ? req.query.userId : undefined;
 
-  const where = canManageQuotas(role)
+  const where = isBoardRole(role)
     ? requestedUserId
       ? { userId: requestedUserId }
       : {}

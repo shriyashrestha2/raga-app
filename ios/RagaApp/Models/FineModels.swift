@@ -30,6 +30,7 @@ struct FineItem: Codable, Identifiable {
     let status: FineStatus
     let issuedAt: Date
     let paidAt: Date?
+    let dueDate: Date?
     let user: AppUser
     let issuedBy: AppUser
 }

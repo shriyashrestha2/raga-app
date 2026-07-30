@@ -25,7 +25,7 @@ export const ALL_ROLES: RoleName[] = ["CAPTAIN", "FINANCE", "PRODUCTION", "LOGIS
 // --- Layer 1: static role -> capability facts -------------------------------
 
 export function canManageFines(role: RoleName): boolean {
-  return role === "CAPTAIN" || role === "FINANCE" || role === "LOGISTICS";
+  return role === "CAPTAIN" || role === "FINANCE";
 }
 
 export function canManageQuotas(role: RoleName): boolean {
@@ -160,12 +160,12 @@ export function canPostAnnouncement(role: RoleName, audienceRole: RoleName | nul
 }
 
 export function canViewFine(role: RoleName, fine: { userId: string }, currentUserId: string): boolean {
-  if (canManageFines(role)) return true;
+  if (isBoardRole(role)) return true;
   return fine.userId === currentUserId;
 }
 
 export function canViewQuota(role: RoleName, quota: { userId: string }, currentUserId: string): boolean {
-  if (canManageQuotas(role)) return true;
+  if (isBoardRole(role)) return true;
   return quota.userId === currentUserId;
 }
 
@@ -199,10 +199,15 @@ export interface Capabilities {
   practicePlanner: { canAccess: boolean };
   choreoReminders: { canAccess: boolean };
   propsCostumes: { mode: PropsCostumesMode };
-  fines: { canManageAny: boolean };
-  quotas: { canManageAny: boolean };
-  fundraising: { canManageAny: boolean };
-  fineSchedule: { canManageAny: boolean };
+  // Board roles (Captain/Finance/Production/Logistics/PR) can view every
+  // record in these finance-area domains; everyone else falls back to
+  // seeing only their own quota/fine, unchanged from before this field
+  // existed (fundraising has no "own record" concept, so non-board members
+  // see nothing there). Only Captain/Finance can create/edit regardless.
+  fines: { canViewAny: boolean; canManageAny: boolean };
+  quotas: { canViewAny: boolean; canManageAny: boolean };
+  fundraising: { canViewAny: boolean; canManageAny: boolean };
+  fineSchedule: { canViewAny: boolean; canManageAny: boolean };
   compApplications: { canAccess: boolean };
   competitionDashboard: { editableSection: CompSection | "ALL" | null; canViewSchedule: boolean };
   teamInfo: { canEdit: boolean };
@@ -224,10 +229,10 @@ export function buildCapabilities(role: RoleName): Capabilities {
     practicePlanner: { canAccess: canAccessPracticePlanner(role) },
     choreoReminders: { canAccess: canAccessChoreoReminders(role) },
     propsCostumes: { mode: propsCostumesAccess(role) },
-    fines: { canManageAny: canManageFines(role) },
-    quotas: { canManageAny: canManageQuotas(role) },
-    fundraising: { canManageAny: canManageFundraising(role) },
-    fineSchedule: { canManageAny: canManageFineSchedule(role) },
+    fines: { canViewAny: isBoardRole(role), canManageAny: canManageFines(role) },
+    quotas: { canViewAny: isBoardRole(role), canManageAny: canManageQuotas(role) },
+    fundraising: { canViewAny: isBoardRole(role), canManageAny: canManageFundraising(role) },
+    fineSchedule: { canViewAny: isBoardRole(role), canManageAny: canManageFineSchedule(role) },
     compApplications: { canAccess: canAccessCompApplications(role) },
     competitionDashboard: { editableSection: editableCompSection(role), canViewSchedule: true },
     teamInfo: { canEdit: canEditTeamInfo(role) },

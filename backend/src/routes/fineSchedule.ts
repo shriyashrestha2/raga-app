@@ -2,14 +2,17 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../prisma.js";
 import { requireUser } from "../middleware/currentUser.js";
-import { canManageFineSchedule } from "../permissions.js";
+import { canManageFineSchedule, isBoardRole } from "../permissions.js";
 
 export const fineScheduleRouter = Router();
 fineScheduleRouter.use(requireUser);
 
-// The schedule (offense list) is visible to every role — only editing it is
-// gated, same split as Fund reads above.
-fineScheduleRouter.get("/", async (_req, res) => {
+// The schedule lives inside the now board-only Fines tab, so viewing it is
+// board-gated too — only editing has its own (narrower) capability.
+fineScheduleRouter.get("/", async (req, res) => {
+  if (!isBoardRole(req.currentUser!.role)) {
+    return res.status(403).json({ error: "You don't have access to this." });
+  }
   const items = await prisma.fineScheduleItem.findMany({ orderBy: { order: "asc" } });
   res.json(items);
 });

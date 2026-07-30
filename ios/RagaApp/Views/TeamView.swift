@@ -23,8 +23,8 @@ enum TeamTab: String, CaseIterable, Identifiable {
 /// This is the one tab with its own NavigationStack; the other three stay
 /// flat. Sub-tabs (Operations/Finance/Production/Team) mirror RoundupView's
 /// segmented-picker pattern — the old single List with 4 Sections is now 4
-/// per-tab Lists (Finance instead renders inline dashboard content, see
-/// FinanceTabView, rather than a list of NavigationLinks).
+/// per-tab Lists (Finance instead renders a second, nested segmented picker
+/// of its own — Fundraising/Quotas/Fines — see FinanceTabView).
 struct TeamView: View {
     @EnvironmentObject private var appState: AppState
     @State private var tab: TeamTab = .operations

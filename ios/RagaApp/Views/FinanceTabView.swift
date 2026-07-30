@@ -1,50 +1,76 @@
 import SwiftUI
 
-/// Finance tab content (Team page → Finance): Fundraising + Fines Tracker,
-/// laid out as a single scroll like RoundupView's per-tab content. A Quotas
-/// link is kept at the top so that existing functionality (previously a
-/// "Finance" list section on the old Team page) doesn't lose a navigable
-/// entry point now that Fines/Fundraising live inline here instead.
+enum FinanceSubTab: String, CaseIterable, Identifiable {
+    case fundraising, quotas, fines
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .fundraising: return "Fundraising"
+        case .quotas: return "Quotas"
+        case .fines: return "Fines"
+        }
+    }
+}
+
+/// Finance tab content (Team page → Finance): a second, nested segmented
+/// picker — same mechanism TeamView uses one level up — choosing between
+/// Fundraising, Quotas, and Fines.
+///
+/// Fundraising has no "own record" for a non-board member to fall back to
+/// (it's team totals only), so it's the one sub-tab actually removed from
+/// this picker for non-board roles — see `visibleSubTabs`. Quotas/Fines stay
+/// visible for everyone: the server already scopes their content to "your
+/// own" for non-board viewers (see backend/src/routes/quotas.ts, fines.ts),
+/// so no client-side hiding is needed there — only the always-visible
+/// "Finance" tab one level up in TeamView guarantees they can still reach
+/// their own quota/fines.
 struct FinanceTabView: View {
     @EnvironmentObject private var appState: AppState
+    @State private var subTab: FinanceSubTab = .fundraising
 
-    var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 16) {
-                quotasLink
-                FundraisingSectionView()
-                Divider()
-                FinesTrackerSectionView()
+    private var visibleSubTabs: [FinanceSubTab] {
+        FinanceSubTab.allCases.filter { candidate in
+            switch candidate {
+            case .fundraising: return appState.capabilities?.fundraising.canViewAny == true
+            default: return true
             }
-            .padding(16)
         }
     }
 
-    private var quotasLink: some View {
-        NavigationLink {
-            QuotasView()
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "chart.bar.fill")
-                    .foregroundStyle(Color("AccentColor"))
-                    .frame(width: 28, height: 28)
-                    .background(Color("AccentColor").opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Quotas").font(.subheadline.bold())
-                    Text(appState.capabilities?.quotas.canManageAny == true ? "Manage member quotas" : "Your quota")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("", selection: $subTab) {
+                ForEach(visibleSubTabs) { Text($0.title).tag($0) }
             }
-            .padding(14)
-            .background(Color(.secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(Color(.separator), lineWidth: 0.5))
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+
+            Group {
+                switch subTab {
+                case .fundraising: fundraisingContent
+                case .quotas: QuotasView()
+                case .fines: finesContent
+                }
+            }
         }
-        .buttonStyle(.plain)
+        .onChange(of: appState.capabilities?.fundraising.canViewAny) { _, canView in
+            if subTab == .fundraising && canView != true { subTab = .quotas }
+        }
+    }
+
+    private var fundraisingContent: some View {
+        ScrollView {
+            FundraisingSectionView()
+                .padding(16)
+        }
+    }
+
+    private var finesContent: some View {
+        ScrollView {
+            FinesTrackerSectionView()
+                .padding(16)
+        }
     }
 }

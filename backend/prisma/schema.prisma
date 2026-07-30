@@ -21,6 +21,7 @@ enum UpdateTag {
   ANNOUNCEMENT
   COSTUME_LOGISTICS
   CHOREO_NOTES
+  FINANCE
 }
 
 enum RsvpResponse {
@@ -111,6 +112,7 @@ model User {
   createdAt             DateTime @default(now())
 
   updates                 Update[]
+  notificationsReceived   Update[]                 @relation("UpdateTarget")
   rsvps                   Rsvp[]
   videos                  Video[]
   attendanceRecords       Attendance[]             @relation("AttendanceSubject")
@@ -150,6 +152,16 @@ model Update {
   visibleToRoles    String    @default("")
   telegramMessageId String?   @unique
   createdAt         DateTime  @default(now())
+
+  // Personal notifications (fund logged, fine issued/reminder) target one
+  // specific user instead of a role — when set, this overrides visibleToRoles
+  // entirely (see updates.ts's canViewUpdate). relatedFineId lets the daily
+  // reminder scheduler dedupe "did I already send today's reminder for this
+  // fine" without a separate tracking table.
+  targetUserId  String?
+  targetUser    User?   @relation("UpdateTarget", fields: [targetUserId], references: [id])
+  relatedFineId String?
+  relatedFine   Fine?   @relation(fields: [relatedFineId], references: [id], onDelete: Cascade)
 }
 
 model Practice {
@@ -372,6 +384,8 @@ model Fine {
   issuedAt    DateTime   @default(now())
   paidAt      DateTime?
   updatedAt   DateTime   @updatedAt
+  dueDate     DateTime?
+  reminders   Update[]
 }
 
 model Quota {

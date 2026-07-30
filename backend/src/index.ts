@@ -25,6 +25,7 @@ import { authRouter } from "./routes/auth.js";
 import { chatRouter } from "./routes/chat.js";
 import { attachCurrentUser } from "./middleware/currentUser.js";
 import { startTelegramBot } from "./telegram/bot.js";
+import { startFineReminderScheduler } from "./scheduler.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -63,3 +64,4 @@ app.listen(port, () => {
 });
 
 startTelegramBot();
+startFineReminderScheduler();

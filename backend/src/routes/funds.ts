@@ -2,14 +2,17 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../prisma.js";
 import { requireUser } from "../middleware/currentUser.js";
-import { canManageFundraising } from "../permissions.js";
+import { canManageFundraising, isBoardRole } from "../permissions.js";
 
 export const fundsRouter = Router();
 fundsRouter.use(requireUser);
 
-// Fundraising totals/breakdown are team-wide, not per-user data, so every
-// authenticated role can read the list — only logging a new fund is gated.
-fundsRouter.get("/", async (_req, res) => {
+// Fundraising totals/breakdown are team-wide, not per-user data, and have no
+// "own record" fallback the way quotas/fines do — so viewing is board-only.
+fundsRouter.get("/", async (req, res) => {
+  if (!isBoardRole(req.currentUser!.role)) {
+    return res.status(403).json({ error: "You don't have access to this." });
+  }
   const funds = await prisma.fund.findMany({
     include: { createdBy: true },
     orderBy: { dateAdded: "desc" },
@@ -35,6 +38,15 @@ fundsRouter.post("/", async (req, res) => {
   const fund = await prisma.fund.create({
     data: { ...parsed.data, createdById: req.currentUser!.id },
     include: { createdBy: true },
+  });
+
+  await prisma.update.create({
+    data: {
+      authorId: req.currentUser!.id,
+      tag: "FINANCE",
+      content: `${req.currentUser!.name} logged a new fund: ${(fund.amountCents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" })} from ${fund.source}.`,
+      visibleToRoles: "CAPTAIN,FINANCE",
+    },
   });
 
   res.status(201).json(fund);

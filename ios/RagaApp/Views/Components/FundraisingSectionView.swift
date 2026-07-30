@@ -1,9 +1,10 @@
 import SwiftUI
 
-/// Fundraising section of the Finance tab: total raised, a per-source
-/// breakdown chart, a few summary stats, and a log-new-fund form. Totals are
-/// visible to every role; only Finance chairs/Captains can log a new fund
-/// (see Capabilities.fundraising).
+/// Fundraising tab: total raised, a per-source breakdown chart, a few
+/// summary stats, and a log-new-fund form. Board roles can view totals
+/// (see Capabilities.fundraising.canViewAny — non-board members never reach
+/// this view, since TeamView hides the tab entirely for them); only Finance
+/// chairs/Captains can log a new fund.
 struct FundraisingSectionView: View {
     @EnvironmentObject private var appState: AppState
     @StateObject private var viewModel = FundsViewModel()

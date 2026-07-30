@@ -110,6 +110,7 @@ struct AppUser: Codable, Identifiable, Hashable {
 struct Capabilities: Codable {
     struct CalendarCapability: Codable { let canEditAny: Bool; let editableCategory: Role? }
     struct AttendanceCapability: Codable { let canEditAny: Bool; let editableCategory: Role? }
+    struct PracticeAttendanceCapability: Codable { let canManageAny: Bool }
     struct AnnouncementsCapability: Codable { let canPostTeamWide: Bool; let ownChannelRole: Role? }
     struct VideosCapability: Codable { let canUpload: Bool }
     struct AccessOnly: Codable { let canAccess: Bool }
@@ -126,6 +127,7 @@ struct Capabilities: Codable {
 
     let calendar: CalendarCapability
     let attendance: AttendanceCapability
+    let practiceAttendance: PracticeAttendanceCapability
     let announcements: AnnouncementsCapability
     let videos: VideosCapability
     let practicePlanner: AccessOnly
@@ -188,6 +190,7 @@ struct PracticeItem: Codable, Identifiable {
     let rsvpNo: Int
     let myRsvp: RsvpMine?
     let detail: [RsvpDetail]?
+    let myAttendance: AttendanceStatus?
 }
 
 struct VideoItem: Codable, Identifiable {
@@ -279,17 +282,20 @@ enum AttendanceStatus: String, Codable, CaseIterable {
     }
 }
 
-struct AttendanceRecord: Codable, Identifiable {
-    let id: String
+// MARK: - Practice attendance (present/absent/late for a Practice session)
+
+struct PracticeAttendanceRecord: Codable, Identifiable {
     let userId: String
-    let status: AttendanceStatus
-    let notes: String?
-    let user: AppUser
+    let name: String
+    let initials: String
+    let role: Role
+    let status: AttendanceStatus?
+    var id: String { userId }
 }
 
-struct AttendanceForEvent: Codable {
+struct PracticeAttendanceForPractice: Codable {
     let canEdit: Bool
-    let records: [AttendanceRecord]
+    let records: [PracticeAttendanceRecord]
 }
 
 // MARK: - Shared team reminders (Roundup tab, all roles see the same list)

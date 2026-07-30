@@ -2,11 +2,7 @@ import SwiftUI
 
 /// The team's home page: calendar up top, unified notifications feed below —
 /// merged into one continuous scroll (no more Calendar/Notifications tab
-/// switcher) to match the Figma prototype's single-page layout. Styled with
-/// `.preferredColorScheme(.light)` so this page alone reads as the
-/// prototype's cream/white look via the app's existing semantic tokens
-/// (Color(.secondarySystemGroupedBackground), Color("AccentColor"), etc.)
-/// while the rest of the app stays in forced dark mode.
+/// switcher) to match the Figma prototype's single-page layout.
 struct RoundupView: View {
     @EnvironmentObject private var appState: AppState
     /// Owned here (not by MiniCalendarView/NotificationsSectionView) so a
@@ -46,6 +42,5 @@ struct RoundupView: View {
                 Task { await notificationsStore.createReminder(title: title, description: description, date: date, type: type, category: category, userId: userId) }
             }
         }
-        .preferredColorScheme(.light)
     }
 }

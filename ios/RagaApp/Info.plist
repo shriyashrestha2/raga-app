@@ -39,6 +39,6 @@
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UIUserInterfaceStyle</key>
-	<string>Dark</string>
+	<string>Light</string>
 </dict>
 </plist>

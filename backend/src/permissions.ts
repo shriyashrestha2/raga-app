@@ -158,6 +158,12 @@ export function canEditAttendance(role: RoleName, eventCategory: string): boolea
   return false;
 }
 
+/** Practice attendance (present/absent/late) is Captain-only to mark —
+ * Practice has no owning board role the way CalendarCategory does. */
+export function canEditPracticeAttendance(role: RoleName): boolean {
+  return role === "CAPTAIN";
+}
+
 export function canPostAnnouncement(role: RoleName, audienceRole: RoleName | null): boolean {
   if (role === "CAPTAIN") return true;
   if (role === "FINANCE" || role === "PRODUCTION" || role === "LOGISTICS") {
@@ -201,6 +207,7 @@ export function editableCompSection(role: RoleName): CompSection | "ALL" | null 
 export interface Capabilities {
   calendar: { canEditAny: boolean; editableCategory: RoleName | null };
   attendance: { canEditAny: boolean; editableCategory: RoleName | null };
+  practiceAttendance: { canManageAny: boolean };
   announcements: { canPostTeamWide: boolean; ownChannelRole: RoleName | null };
   videos: { canUpload: true };
   practicePlanner: { canAccess: boolean };
@@ -235,6 +242,7 @@ export function buildCapabilities(role: RoleName): Capabilities {
   return {
     calendar: { canEditAny: role === "CAPTAIN", editableCategory },
     attendance: { canEditAny: role === "CAPTAIN", editableCategory: role === "PRODUCTION" ? "PRODUCTION" : editableCategory },
+    practiceAttendance: { canManageAny: canEditPracticeAttendance(role) },
     announcements: { canPostTeamWide: role === "CAPTAIN", ownChannelRole },
     videos: { canUpload: true },
     practicePlanner: { canAccess: canAccessPracticePlanner(role) },

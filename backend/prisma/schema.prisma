@@ -117,6 +117,8 @@ model User {
   videos                  Video[]
   attendanceRecords       Attendance[]             @relation("AttendanceSubject")
   attendanceMarkedBy      Attendance[]             @relation("AttendanceMarkedBy")
+  practiceAttendanceRecords  PracticeAttendance[]  @relation("PracticeAttendanceSubject")
+  practiceAttendanceMarkedBy PracticeAttendance[]  @relation("PracticeAttendanceMarkedBy")
   fines                   Fine[]                   @relation("FineTarget")
   finesIssued             Fine[]                   @relation("FineIssuedBy")
   quotas                  Quota[]                  @relation("QuotaSubject")
@@ -172,8 +174,9 @@ model Practice {
   reminder  String?
   createdAt DateTime @default(now())
 
-  rsvps Rsvp[]
-  plans PracticePlan[]
+  rsvps      Rsvp[]
+  plans      PracticePlan[]
+  attendance PracticeAttendance[]
 }
 
 model Rsvp {
@@ -246,6 +249,26 @@ model Attendance {
   updatedAt  DateTime         @updatedAt
 
   @@unique([eventId, userId])
+}
+
+// Real attendance for a specific Practice session (present/absent/late),
+// separate from Attendance (ad-hoc CalendarEvent check-in, above) and from
+// Rsvp (RSVP-intent before the practice happens). Practice isn't owned by
+// any single board role the way CalendarCategory is, so this is Captain-only
+// to mark rather than reusing canEditAttendance's category->role mapping
+// (see permissions.ts's canEditPracticeAttendance).
+model PracticeAttendance {
+  id         String           @id @default(cuid())
+  practice   Practice         @relation(fields: [practiceId], references: [id])
+  practiceId String
+  user       User             @relation("PracticeAttendanceSubject", fields: [userId], references: [id])
+  userId     String
+  status     AttendanceStatus
+  markedById String
+  markedBy   User             @relation("PracticeAttendanceMarkedBy", fields: [markedById], references: [id])
+  updatedAt  DateTime         @updatedAt
+
+  @@unique([practiceId, userId])
 }
 
 // Shared team reminders (Roundup tab, all roles see the same list, filterable

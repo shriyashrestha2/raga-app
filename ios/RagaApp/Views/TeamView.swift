@@ -48,16 +48,15 @@ struct TeamView: View {
                     }
                 }
             }
-            .navigationTitle("Team")
         }
     }
 
     private var operationsList: some View {
         List {
             NavigationLink {
-                AttendanceEventPickerView()
+                PracticeAttendanceView()
             } label: {
-                MenuRow(icon: "checklist", title: "Attendance", subtitle: "Check in team members at events")
+                MenuRow(icon: "checklist", title: "Attendance", subtitle: "Practice attendance, present/late/absent")
             }
 
             if appState.capabilities?.practicePlanner.canAccess == true {
@@ -110,33 +109,6 @@ struct TeamView: View {
                 } label: {
                     MenuRow(icon: "person.badge.key.fill", title: "Role Management", subtitle: "Assign member roles")
                 }
-            }
-        }
-    }
-}
-
-private struct AttendanceEventPickerView: View {
-    @EnvironmentObject private var appState: AppState
-
-    var body: some View {
-        List(appState.calendarEvents) { event in
-            NavigationLink {
-                AttendanceView(event: event)
-            } label: {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(event.label).font(.subheadline.bold())
-                    Text(event.date, format: .dateTime.month(.abbreviated).day().year())
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .navigationTitle("Attendance")
-        .navigationBarTitleDisplayMode(.inline)
-        .overlay {
-            if appState.calendarEvents.isEmpty {
-                EmptyStateView(icon: "calendar", title: "No events yet", message: "Calendar events will show up here once scheduled.")
-                    .padding(16)
             }
         }
     }

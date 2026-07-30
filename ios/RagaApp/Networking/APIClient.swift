@@ -99,6 +99,14 @@ final class APIClient {
         try Self.validate(response, data: data)
     }
 
+    /// Like `put`, but for endpoints that reply 204 No Content — decoding an
+    /// empty body as JSON would otherwise throw.
+    func putNoContent(_ path: String, body: [String: Any], userId: String? = nil) async throws {
+        let request = try request(path, method: "PUT", body: body, userId: userId)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try Self.validate(response, data: data)
+    }
+
     private static func validate(_ response: URLResponse, data: Data) throws {
         guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
         guard (200..<300).contains(http.statusCode) else {
@@ -288,16 +296,26 @@ final class APIClient {
         )
     }
 
-    // MARK: - Attendance
+    // MARK: - Practice attendance (Captain-only to mark)
 
-    func fetchAttendance(eventId: String, userId: String) async throws -> AttendanceForEvent {
-        try await get("attendance/event/\(eventId)", userId: userId)
+    func fetchPracticeAttendance(practiceId: String, userId: String) async throws -> PracticeAttendanceForPractice {
+        try await get("practices/\(practiceId)/attendance", userId: userId)
     }
 
-    @discardableResult
-    func markAttendance(eventId: String, targetUserId: String, status: AttendanceStatus, notes: String?, userId: String) async throws -> AttendanceRecord {
-        var body: [String: Any] = ["userId": targetUserId, "status": status.rawValue]
-        if let notes { body["notes"] = notes }
-        return try await put("attendance/event/\(eventId)/mark", body: body, userId: userId)
+    func markPracticeAttendance(practiceId: String, targetUserId: String, status: AttendanceStatus, userId: String) async throws {
+        let _: EmptyDecodable = try await put(
+            "practices/\(practiceId)/attendance/mark",
+            body: ["userId": targetUserId, "status": status.rawValue],
+            userId: userId
+        )
+    }
+
+    func markAllPracticeAttendance(practiceId: String, status: AttendanceStatus, userId: String) async throws {
+        try await putNoContent("practices/\(practiceId)/attendance/mark-all", body: ["status": status.rawValue], userId: userId)
     }
 }
+
+/// Decodes any JSON body without caring about its shape — used where the
+/// server returns a record we don't need back (e.g. mark-attendance results,
+/// since the caller just re-fetches the full dashboard after marking).
+struct EmptyDecodable: Decodable {}

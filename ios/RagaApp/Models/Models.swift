@@ -75,7 +75,7 @@ enum CalendarCategory: String, Codable, CaseIterable {
         case .practice: return "Practice"
         case .captains: return "Captains"
         case .production: return "Production"
-        case .social: return "Social"
+        case .social: return "PR"
         case .logistics: return "Logistics"
         }
     }

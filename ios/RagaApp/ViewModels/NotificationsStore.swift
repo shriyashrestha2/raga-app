@@ -1,10 +1,8 @@
 import Foundation
 
-/// Single source of truth for the unified Notifications feed, shared by the
-/// Notifications tab and the Calendar tab's "Coming Up" widget. Both read
-/// from — and clear items through — this one store (owned by RoundupView,
-/// one instance per app session) instead of each keeping its own copy, so a
-/// swipe-to-clear in either tab is instantly reflected in the other.
+/// Single source of truth for the unified Notifications feed shown on the
+/// Roundup page, owned by RoundupView (one instance per app session) and
+/// passed down to NotificationsSectionView.
 ///
 /// Reminders and Updates (announcements) stay separate backend models —
 /// this only unifies them for display via `items(withAnnouncements:)`.

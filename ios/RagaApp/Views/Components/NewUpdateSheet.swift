@@ -1,10 +1,10 @@
 import SwiftUI
 
 /// Sheet for posting a new team update/announcement, styled after
-/// NewCalendarEventSheet/NewReminderSheet. `audienceRole` (which non-Captain
-/// "own channel" this posts under) is auto-scoped server-side from the
-/// poster's role, same as calendar event category — this sheet only exposes
-/// content, pinning, and the shared "Visible to" viewer restriction.
+/// NewReminderSheet. `audienceRole` (which non-Captain "own channel" this
+/// posts under) is auto-scoped server-side from the poster's role — this
+/// sheet only exposes content, pinning, and the shared "Visible to" viewer
+/// restriction.
 struct NewUpdateSheet: View {
     @Environment(\.dismiss) private var dismiss
     let onCreate: (UpdateTag, String, Bool, [Role]) -> Void

@@ -1,15 +1,13 @@
 import SwiftUI
 
 enum CalendarViewMode: String, CaseIterable, Identifiable {
-    case day, week, month, year
+    case week, month
     var id: String { rawValue }
 
     var label: String {
         switch self {
-        case .day: return "Day"
         case .week: return "Week"
         case .month: return "Month"
-        case .year: return "Year"
         }
     }
 }
@@ -17,6 +15,15 @@ enum CalendarViewMode: String, CaseIterable, Identifiable {
 struct MiniCalendarView: View {
     @EnvironmentObject private var appState: AppState
     let events: [CalendarEventItem]
+    let practices: [PracticeItem]
+    /// Shared with NotificationsSectionView (owned by RoundupView) — tapping
+    /// a day sets this and filters the feed below to that day; tapping the
+    /// same day again clears it back to nil.
+    @Binding var selectedDate: Date?
+    /// Opens the same Add Notification flow the old standalone button used
+    /// to trigger — the "+" here is now the single entry point for creating
+    /// a notification (Calendar Events were retired).
+    let onAddNotification: () -> Void
 
     @State private var viewMode: CalendarViewMode = .month
     @State private var currentDate: Date = {
@@ -26,35 +33,24 @@ struct MiniCalendarView: View {
         components.day = 1
         return Calendar.current.date(from: components) ?? Date()
     }()
-    @State private var selectedDate: Date?
-    @State private var newEventDate: Date?
 
     private let calendar = Calendar.current
     private let weekdaySymbols = ["S", "M", "T", "W", "T", "F", "S"]
 
-    /// Mirrors the server's POST /calendar gate: Captains and the
-    /// role-owned categories (Finance/Production/Logistics) can add events;
-    /// everyone else uses the Reminders tab instead.
-    private var canCreateEvent: Bool {
-        appState.capabilities?.calendar.canEditAny == true || appState.capabilities?.calendar.editableCategory != nil
-    }
+    /// Only Captains and board positions can post — mirrors canCreateReminder
+    /// in backend/src/permissions.ts, same gate the old Add Notification
+    /// button used.
+    private var canCreateReminder: Bool { appState.capabilities?.reminders.canCreate == true }
 
-    /// Tap opens the day's event breakdown; long-press starts adding a new
-    /// event on that date. Plain `.onTapGesture` has no maximum duration, so
-    /// it would also fire after a long press's release — composing the two
-    /// gestures with `.exclusively(before:)` ensures only one wins per touch.
-    private func dateGesture(for date: Date) -> some Gesture {
-        LongPressGesture(minimumDuration: 0.4)
-            .exclusively(before: TapGesture())
-            .onEnded { result in
-                switch result {
-                case .first:
-                    guard canCreateEvent else { return }
-                    newEventDate = date
-                case .second:
-                    selectedDate = date
-                }
-            }
+    /// Tapping a day highlights it (solid accent circle, matching the Figma
+    /// prototype) and filters the feed below to that day; tapping the same
+    /// day again clears the selection.
+    private func toggleSelection(_ date: Date) {
+        if let selectedDate, calendar.isDate(selectedDate, inSameDayAs: date) {
+            self.selectedDate = nil
+        } else {
+            self.selectedDate = date
+        }
     }
 
     var body: some View {
@@ -67,10 +63,8 @@ struct MiniCalendarView: View {
             header
 
             switch viewMode {
-            case .day: dayView
             case .week: weekView
             case .month: monthView
-            case .year: yearView
             }
 
             Divider()
@@ -80,34 +74,13 @@ struct MiniCalendarView: View {
         .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(Color(.separator), lineWidth: 0.5))
-        .sheet(isPresented: Binding(
-            get: { selectedDate != nil },
-            set: { if !$0 { selectedDate = nil } }
-        )) {
-            if let selectedDate {
-                CalendarDayDetailSheet(date: selectedDate, events: events(on: selectedDate))
-            }
-        }
-        .sheet(isPresented: Binding(
-            get: { newEventDate != nil },
-            set: { if !$0 { newEventDate = nil } }
-        )) {
-            if let newEventDate {
-                NewCalendarEventSheet(initialDate: newEventDate, role: appState.role) { label, description, date, category, visibleToRoles in
-                    Task {
-                        await appState.createCalendarEvent(date: date, category: category, label: label, description: description, visibleToRoles: visibleToRoles)
-                    }
-                }
-            }
-        }
+        .shadow(color: .black.opacity(0.06), radius: 12, y: 4)
     }
 
     // MARK: - Header
 
     private var headerTitle: String {
         switch viewMode {
-        case .day:
-            return currentDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
         case .week:
             let days = weekDays(containing: currentDate)
             guard let first = days.first, let last = days.last else { return "" }
@@ -116,8 +89,6 @@ struct MiniCalendarView: View {
             return "\(firstStr) – \(lastStr), \(calendar.component(.year, from: last))"
         case .month:
             return currentDate.formatted(.dateTime.month(.wide).year())
-        case .year:
-            return currentDate.formatted(.dateTime.year())
         }
     }
 
@@ -127,7 +98,7 @@ struct MiniCalendarView: View {
                 .font(.subheadline.bold())
             Spacer()
             HStack(spacing: 10) {
-                Button("Today") { currentDate = Date() }
+                Button("Today") { withAnimation { currentDate = Date() } }
                     .font(.caption2.bold())
                     .foregroundStyle(.primary)
 
@@ -142,21 +113,43 @@ struct MiniCalendarView: View {
                 .buttonStyle(.bordered)
                 .buttonBorderShape(.circle)
                 .controlSize(.mini)
+
+                if canCreateReminder {
+                    Button(action: onAddNotification) {
+                        Image(systemName: "plus")
+                            .font(.caption.bold())
+                            .foregroundStyle(.white)
+                            .frame(width: 26, height: 26)
+                            .background(Color("AccentColor"), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .shadow(color: Color("AccentColor").opacity(0.35), radius: 4, y: 2)
+                }
             }
         }
     }
 
     private func shift(_ delta: Int) {
-        let component: Calendar.Component
-        switch viewMode {
-        case .day: component = .day
-        case .week: component = .weekOfYear
-        case .month: component = .month
-        case .year: component = .year
-        }
+        let component: Calendar.Component = viewMode == .week ? .weekOfYear : .month
         if let newDate = calendar.date(byAdding: component, value: delta, to: currentDate) {
             currentDate = newDate
         }
+    }
+
+    // MARK: - Day summary (events + practice merged, for dots and lists)
+
+    private struct DaySummaryEntry: Identifiable {
+        let id: String
+        let category: CalendarCategory
+        let label: String
+    }
+
+    private func summaryEntries(on date: Date) -> [DaySummaryEntry] {
+        var entries = events(on: date).map { DaySummaryEntry(id: $0.id, category: $0.category, label: $0.label) }
+        if let practice = practices.first(where: { calendar.isDate($0.date, inSameDayAs: date) }) {
+            entries.append(DaySummaryEntry(id: "practice-\(practice.id)", category: .practice, label: practice.focus))
+        }
+        return entries
     }
 
     // MARK: - Month view
@@ -176,7 +169,7 @@ struct MiniCalendarView: View {
     }
 
     private var monthView: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
             HStack {
                 ForEach(Array(weekdaySymbols.enumerated()), id: \.offset) { _, symbol in
                     Text(symbol)
@@ -186,28 +179,33 @@ struct MiniCalendarView: View {
                 }
             }
 
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 6) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 8) {
                 ForEach(Array(monthDays.enumerated()), id: \.offset) { _, date in
                     if let date {
+                        let isToday = calendar.isDateInToday(date)
+                        let isSelected = selectedDate.map { calendar.isDate($0, inSameDayAs: date) } ?? false
                         VStack(spacing: 3) {
                             Text("\(calendar.component(.day, from: date))")
-                                .font(.caption.weight(calendar.isDateInToday(date) ? .bold : .medium))
-                                .foregroundStyle(calendar.isDateInToday(date) ? Color("AccentColor") : .primary)
-                                .frame(width: 24, height: 24)
+                                .font(.caption.weight(isToday || isSelected ? .bold : .medium))
+                                .foregroundStyle(isSelected ? .white : (isToday ? Color("AccentColor") : .primary))
+                                .frame(width: 26, height: 26)
+                                .background(
+                                    Circle().fill(isSelected ? Color("AccentColor") : (isToday ? Color("AccentColor").opacity(0.14) : Color.clear))
+                                )
 
                             HStack(spacing: 2) {
-                                ForEach(events(on: date).prefix(3)) { event in
+                                ForEach(summaryEntries(on: date).prefix(3)) { entry in
                                     Circle()
-                                        .fill(event.category.color)
+                                        .fill(entry.category.color)
                                         .frame(width: 5, height: 5)
                                 }
                             }
                             .frame(height: 6)
                         }
                         .contentShape(Rectangle())
-                        .simultaneousGesture(dateGesture(for: date))
+                        .onTapGesture { toggleSelection(date) }
                     } else {
-                        Color.clear.frame(height: 30)
+                        Color.clear.frame(height: 32)
                     }
                 }
             }
@@ -221,132 +219,45 @@ struct MiniCalendarView: View {
         return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: weekInterval.start) }
     }
 
+    /// A wide horizontal day strip — weekday letter, day-number circle, small
+    /// dot row below — matching the Figma prototype's week view exactly,
+    /// rather than a vertical stacked list. Tapping a day selects it, same as
+    /// monthView; the day's items show in the feed below, not inline here.
     private var weekView: some View {
-        VStack(spacing: 4) {
+        HStack(spacing: 0) {
             ForEach(weekDays(containing: currentDate), id: \.self) { date in
-                weekDayRow(date)
-                    .simultaneousGesture(dateGesture(for: date))
-
-                if date != weekDays(containing: currentDate).last {
-                    Divider()
-                }
+                weekDayColumn(date)
+                    .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
+                    .onTapGesture { toggleSelection(date) }
             }
         }
     }
 
-    private func weekDayRow(_ date: Date) -> some View {
-        let dayEvents = events(on: date)
-        return HStack(alignment: .top, spacing: 10) {
-            VStack(spacing: 2) {
-                Text(date.formatted(.dateTime.weekday(.abbreviated)))
-                    .font(.caption2.bold())
-                    .foregroundStyle(.tertiary)
-                Text("\(calendar.component(.day, from: date))")
-                    .font(.subheadline.weight(calendar.isDateInToday(date) ? .bold : .medium))
-                    .foregroundStyle(calendar.isDateInToday(date) ? Color("AccentColor") : .primary)
-                    .frame(width: 26, height: 26)
-            }
-            .frame(width: 40)
+    private func weekDayColumn(_ date: Date) -> some View {
+        let isToday = calendar.isDateInToday(date)
+        let isSelected = selectedDate.map { calendar.isDate($0, inSameDayAs: date) } ?? false
+        return VStack(spacing: 8) {
+            Text(date.formatted(.dateTime.weekday(.abbreviated)))
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.secondary)
 
-            if dayEvents.isEmpty {
-                Text("No events")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .padding(.top, 6)
-            } else {
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(dayEvents.prefix(3)) { event in
-                        HStack(spacing: 6) {
-                            Circle().fill(event.category.color).frame(width: 6, height: 6)
-                            Text(event.label)
-                                .font(.caption.weight(.medium))
-                                .lineLimit(1)
-                        }
-                    }
-                    if dayEvents.count > 3 {
-                        Text("+\(dayEvents.count - 3) more")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
+            Text("\(calendar.component(.day, from: date))")
+                .font(.subheadline.weight(isToday || isSelected ? .bold : .medium))
+                .foregroundStyle(isSelected ? .white : (isToday ? Color("AccentColor") : .primary))
+                .frame(width: 38, height: 38)
+                .background(
+                    Circle().fill(isSelected ? Color("AccentColor") : (isToday ? Color("AccentColor").opacity(0.14) : Color.clear))
+                )
+
+            HStack(spacing: 2) {
+                ForEach(summaryEntries(on: date).prefix(3)) { entry in
+                    Circle().fill(entry.category.color).frame(width: 5, height: 5)
                 }
-                .padding(.top, 2)
             }
-            Spacer(minLength: 0)
+            .frame(height: 6)
         }
         .padding(.vertical, 6)
-        .contentShape(Rectangle())
-    }
-
-    // MARK: - Day view
-
-    private var dayView: some View {
-        let dayEvents = events(on: currentDate)
-        return VStack(alignment: .leading, spacing: 4) {
-            if dayEvents.isEmpty {
-                Text("No events scheduled.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 24)
-            } else {
-                ForEach(Array(dayEvents.enumerated()), id: \.element.id) { index, event in
-                    CalendarEventRow(event: event)
-                    if index < dayEvents.count - 1 {
-                        Divider()
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: - Year view
-
-    private func monthsInYear(_ date: Date) -> [Date] {
-        guard let yearStart = calendar.date(from: calendar.dateComponents([.year], from: date)) else { return [] }
-        return (0..<12).compactMap { calendar.date(byAdding: .month, value: $0, to: yearStart) }
-    }
-
-    private func events(inMonth monthDate: Date) -> [CalendarEventItem] {
-        events.filter { calendar.isDate($0.date, equalTo: monthDate, toGranularity: .month) }
-    }
-
-    private var yearView: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 10) {
-            ForEach(monthsInYear(currentDate), id: \.self) { monthDate in
-                Button {
-                    currentDate = monthDate
-                    viewMode = .month
-                } label: {
-                    yearMonthTile(monthDate)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-
-    private func yearMonthTile(_ monthDate: Date) -> some View {
-        let monthEvents = events(inMonth: monthDate)
-        let categories = Set(monthEvents.map(\.category)).sorted { $0.rawValue < $1.rawValue }
-        return VStack(spacing: 6) {
-            Text(monthDate.formatted(.dateTime.month(.abbreviated)))
-                .font(.caption.bold())
-                .foregroundStyle(calendar.isDate(monthDate, equalTo: Date(), toGranularity: .month) ? Color("AccentColor") : .primary)
-
-            HStack(spacing: 3) {
-                ForEach(categories.prefix(4), id: \.self) { category in
-                    Circle().fill(category.color).frame(width: 5, height: 5)
-                }
-            }
-            .frame(height: 5)
-
-            Text(monthEvents.isEmpty ? " " : "\(monthEvents.count)")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
-        .background(Color(.tertiarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     // MARK: - Shared

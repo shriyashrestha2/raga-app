@@ -2,18 +2,14 @@ import SwiftUI
 
 /// One card style for every item in the Notifications feed — announcement,
 /// task, or RSVP reminder — matching the Figma prototype's NotificationCard.
-/// `compact` drives the condensed variant used in the Calendar tab's
-/// "Coming Up" widget (no body text, icon-only RSVP buttons).
+/// `compact` drives the condensed variant (no body text, icon-only RSVP
+/// buttons) used in the sheet preview and elsewhere. Deletion now happens via
+/// a swipe gesture (see SwipeToDismissView), not an inline edit-mode button.
 struct NotificationCardView: View {
     let item: NotificationFeedItem
     var compact: Bool = false
-    var canDelete: Bool = false
-    var isEditing: Bool = false
     var onRsvp: ((RsvpResponse) -> Void)? = nil
     var onToggleDone: (() -> Void)? = nil
-    var onDelete: (() -> Void)? = nil
-
-    @State private var showDeleteConfirm = false
 
     private var category: CalendarCategory { item.displayCategory }
 
@@ -22,20 +18,15 @@ struct NotificationCardView: View {
             Rectangle().fill(category.color).frame(width: 4)
 
             HStack(alignment: .center, spacing: 12) {
-                if isEditing && canDelete {
-                    Button(role: .destructive) { showDeleteConfirm = true } label: {
-                        Image(systemName: "minus.circle.fill")
-                            .font(.title3)
-                            .foregroundStyle(.red)
-                    }
-                    .buttonStyle(.plain)
-                    .transition(.scale.combined(with: .opacity))
-                }
-
                 avatar
 
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 6) {
+                        if item.isAnnouncement {
+                            Image(systemName: "bell.fill")
+                                .font(.caption2)
+                                .foregroundStyle(category.color)
+                        }
                         if item.pinned {
                             Text("PINNED")
                                 .font(.caption2.bold())
@@ -79,15 +70,11 @@ struct NotificationCardView: View {
                 action
             }
             .padding(14)
-            .animation(.default, value: isEditing)
         }
         .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(Color(.separator), lineWidth: 0.5))
-        .confirmationDialog("Delete this reminder?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) { onDelete?() }
-            Button("Cancel", role: .cancel) {}
-        }
+        .shadow(color: .black.opacity(0.05), radius: 6, y: 2)
     }
 
     private var avatar: some View {

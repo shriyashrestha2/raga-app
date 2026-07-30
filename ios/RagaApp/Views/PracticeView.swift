@@ -40,6 +40,7 @@ struct PracticeView: View {
                 }
             }
         }
+        .preferredColorScheme(.light)
     }
 }
 
@@ -66,7 +67,7 @@ private struct CaptainBannerView: View {
     }
 }
 
-private struct RsvpReasonSheet: View {
+struct RsvpReasonSheet: View {
     @Binding var reason: String
     let onSubmit: () -> Void
     @Environment(\.dismiss) private var dismiss

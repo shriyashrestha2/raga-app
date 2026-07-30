@@ -1,13 +1,14 @@
 import SwiftUI
 
 enum AppTab: String, CaseIterable, Identifiable {
-    case roundup, practice, videos, team
+    case roundup, practice, chat, videos, team
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .roundup: return "Roundup"
         case .practice: return "Practice"
+        case .chat: return "Chat"
         case .videos: return "Videos"
         case .team: return "Team"
         }
@@ -17,20 +18,34 @@ enum AppTab: String, CaseIterable, Identifiable {
         switch self {
         case .roundup: return "megaphone.fill"
         case .practice: return "calendar"
+        case .chat: return "bubble.left.and.bubble.right.fill"
         case .videos: return "play.fill"
         case .team: return "person.3.fill"
         }
     }
 }
 
+// TEMPORARY: set to false (or delete this line and its two call sites below)
+// to restore the real phone/OTP login flow — OnboardingFlowView and
+// everything it depends on are untouched, this just bypasses them. See the
+// "dev quick login bypass" project memory for context on why this was added.
+private let devModeQuickSwitchEnabled = true
+
 struct RootView: View {
     @EnvironmentObject private var appState: AppState
     @State private var tab: AppTab = .roundup
+    /// Drives whether the bottom tab bar is shown. ChatView flips this while
+    /// its composer's text field is focused, so the tab bar doesn't get
+    /// pushed around above the keyboard — it's simply hidden instead, and
+    /// reappears once typing stops (see ChatView's isComposerFocused).
+    @State private var chatComposerFocused = false
 
     var body: some View {
         Group {
             if appState.isLoggedIn {
                 loggedInBody
+            } else if devModeQuickSwitchEnabled {
+                DevProfileSwitcherView()
             } else {
                 OnboardingFlowView()
             }
@@ -53,6 +68,7 @@ struct RootView: View {
                 switch tab {
                 case .roundup: RoundupView()
                 case .practice: PracticeView()
+                case .chat: ChatView(isComposerFocused: $chatComposerFocused)
                 case .videos: VideosView()
                 case .team: TeamView()
                 }
@@ -60,8 +76,11 @@ struct RootView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color("AppBackground"))
 
-            BottomNavView(tab: $tab)
+            if !(tab == .chat && chatComposerFocused) {
+                BottomNavView(tab: $tab)
+            }
         }
+        .animation(.easeInOut(duration: 0.2), value: chatComposerFocused)
     }
 }
 
@@ -69,6 +88,7 @@ private struct TopHeaderView: View {
     @EnvironmentObject private var appState: AppState
     let title: String
     @State private var showingLogOutConfirm = false
+    @State private var showingProfileSwitcher = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -85,7 +105,14 @@ private struct TopHeaderView: View {
                 }
                 Spacer()
                 Button {
-                    showingLogOutConfirm = true
+                    // TEMPORARY: jumps straight to the dev quick-switcher
+                    // instead of the log-out confirmation — see
+                    // devModeQuickSwitchEnabled at the top of this file.
+                    if devModeQuickSwitchEnabled {
+                        showingProfileSwitcher = true
+                    } else {
+                        showingLogOutConfirm = true
+                    }
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: appState.role.symbol)
@@ -109,6 +136,9 @@ private struct TopHeaderView: View {
         .confirmationDialog("Log out of RU RAGA?", isPresented: $showingLogOutConfirm, titleVisibility: .visible) {
             Button("Log Out", role: .destructive) { appState.logOut() }
             Button("Cancel", role: .cancel) {}
+        }
+        .sheet(isPresented: $showingProfileSwitcher) {
+            DevProfileSwitcherView()
         }
     }
 }

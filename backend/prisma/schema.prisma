@@ -131,6 +131,8 @@ model User {
   reminderTaskCompletions ReminderTaskCompletion[]
   fundsLogged             Fund[]                   @relation("FundCreatedBy")
   quotaContributionsMade  QuotaContribution[]      @relation("QuotaContributionCreatedBy")
+  chatMessagesSent        ChatMessage[]            @relation("ChatMessageAuthor")
+  chatReactionsMade       ChatReaction[]            @relation("ChatReactionAuthor")
 }
 
 model Update {
@@ -503,6 +505,61 @@ model FineScheduleItem {
   order       Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// Chat tab: one flat, team-wide channel — no threads or DMs. Kept
+// intentionally simple (per team-app-prd.md's Chat spec) rather than
+// modeled after Update/Reminder's role-scoped visibility, since every
+// member sees the same stream. `content` may be empty when the message is
+// attachment-only — the API layer requires at least one of content/
+// attachments (SQLite can't express that as a column constraint, same
+// pattern as Rsvp.reason). `pinned` is board-only to set (see
+// permissions.ts's canPinChatMessage) but visible/orderable by everyone.
+model ChatMessage {
+  id        String   @id @default(cuid())
+  content   String
+  pinned    Boolean  @default(false)
+  authorId  String
+  author    User     @relation("ChatMessageAuthor", fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+
+  reactions   ChatReaction[]
+  attachments ChatAttachment[]
+}
+
+// One row per (message, user) — a user has at most one reaction per message.
+// Reacting with a different emoji replaces theirs; reacting again with the
+// same emoji clears it. See routes/chat.ts's POST /:id/react.
+model ChatReaction {
+  id        String      @id @default(cuid())
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  messageId String
+  user      User        @relation("ChatReactionAuthor", fields: [userId], references: [id])
+  userId    String
+  emoji     String
+  createdAt DateTime    @default(now())
+
+  @@unique([messageId, userId])
+}
+
+enum ChatAttachmentKind {
+  IMAGE
+  FILE
+}
+
+// A photo or file attached to a chat message. `url` is a relative path
+// served by our own /uploads static route (see storage.ts), matching
+// Video.url's pattern — never an arbitrary external link.
+model ChatAttachment {
+  id            String             @id @default(cuid())
+  message       ChatMessage        @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  messageId     String
+  kind          ChatAttachmentKind
+  url           String
+  fileName      String
+  mimeType      String
+  fileSizeBytes Int
+  createdAt     DateTime           @default(now())
 }
 
 model TeamInfo {

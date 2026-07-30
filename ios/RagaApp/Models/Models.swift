@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 enum Role: String, Codable, CaseIterable {
     case captain = "CAPTAIN"
@@ -31,6 +32,13 @@ enum Role: String, Codable, CaseIterable {
         case .returner: return "person.fill"
         case .newbie: return "person.fill.questionmark"
         }
+    }
+
+    /// Board positions whose role badge shows next to their name in Chat —
+    /// mirrors backend/src/permissions.ts's isBoardRole (Captain plus the
+    /// four board chairs; Returner/Newbie are the only non-board roles).
+    var isBoardRole: Bool {
+        self != .returner && self != .newbie
     }
 }
 
@@ -104,6 +112,7 @@ struct Capabilities: Codable {
     struct TeamInfoCapability: Codable { let canEdit: Bool }
     struct RemindersCapability: Codable { let canCreate: Bool; let lockedCategory: CalendarCategory? }
     struct NotificationsCapability: Codable { let canDeleteAny: Bool }
+    struct ChatCapability: Codable { let canPinAny: Bool }
 
     let calendar: CalendarCapability
     let attendance: AttendanceCapability
@@ -122,6 +131,7 @@ struct Capabilities: Codable {
     let roleManagement: AccessOnly
     let reminders: RemindersCapability
     let notifications: NotificationsCapability
+    let chat: ChatCapability
 }
 
 struct MeResponse: Codable {
@@ -296,4 +306,63 @@ struct ReminderItem: Codable, Identifiable {
     let myRsvp: RsvpResponse?
     let doneCount: Int
     let doneByMe: Bool
+}
+
+// MARK: - Team chat (Chat tab, single flat channel, every role participates)
+
+struct ChatReactionSummary: Codable, Identifiable, Hashable {
+    var id: String { emoji }
+    let emoji: String
+    let count: Int
+    let reactedByMe: Bool
+}
+
+enum ChatAttachmentKind: String, Codable {
+    case image = "IMAGE"
+    case file = "FILE"
+}
+
+struct ChatAttachmentItem: Codable, Identifiable {
+    let id: String
+    let kind: ChatAttachmentKind
+    let url: String
+    let fileName: String
+    let mimeType: String
+    let fileSizeBytes: Int
+
+    /// `url` is a relative path served by our own backend (e.g.
+    /// `/uploads/chat/<id>.png`), not an external link — resolve it against
+    /// the API's base URL, matching VideoItem.resolvedURL's pattern.
+    var resolvedURL: URL? {
+        URL(string: url, relativeTo: APIClient.shared.baseURL)?.absoluteURL
+    }
+
+    var formattedFileSize: String {
+        ByteCountFormatter.string(fromByteCount: Int64(fileSizeBytes), countStyle: .file)
+    }
+}
+
+struct ChatMessageItem: Codable, Identifiable {
+    let id: String
+    let content: String
+    let pinned: Bool
+    let createdAt: Date
+    let author: AppUser
+    let attachments: [ChatAttachmentItem]
+    let reactions: [ChatReactionSummary]
+}
+
+/// A photo or file the user picked but hasn't sent yet — built client-side
+/// from PhotosPicker/fileImporter output, never decoded from the server
+/// (contrast with ChatAttachmentItem, which is what a sent message reports
+/// back). Held in-memory only until send() turns it into multipart form
+/// data.
+struct ChatOutgoingAttachment: Identifiable {
+    let id = UUID()
+    let fileName: String
+    let mimeType: String
+    let data: Data
+    /// Only set for images — lets the composer preview show a thumbnail
+    /// without re-decoding `data` on every redraw.
+    let previewImage: UIImage?
 }

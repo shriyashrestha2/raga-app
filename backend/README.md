@@ -36,6 +36,11 @@ npm run dev     # http://localhost:4000, auto-restarts on file changes
 | `GET /videos?set=` | Video library, optionally filtered by set/song label |
 | `POST /videos` | Add a YouTube link `{ title, set, url, uploadedById, ... }` |
 | `GET /calendar` | Team calendar events (for the Roundup tab's mini calendar) |
+| `GET /chat` | Chat tab feed — team-wide flat channel, newest 200 messages |
+| `GET /chat/pinned` | All pinned messages, regardless of the 200-message window above |
+| `POST /chat` | Send a message. Multipart form: `content` (optional text) + up to 10 `attachments` files — at least one of the two is required |
+| `POST /chat/:id/react` | Set your reaction `{ emoji }` — one per person per message; the same emoji again clears it, a different one replaces it |
+| `PATCH /chat/:id/pin` | Board-only: `{ pinned }` |
 
 ## Enabling real Telegram ingestion
 

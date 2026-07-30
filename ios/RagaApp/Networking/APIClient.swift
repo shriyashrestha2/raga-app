@@ -1,5 +1,13 @@
 import Foundation
 
+/// One file to attach to a multipart request — see APIClient.multipartRequest.
+struct MultipartFile {
+    let fieldName: String
+    let fileName: String
+    let mimeType: String
+    let data: Data
+}
+
 enum APIError: Error, LocalizedError {
     case server(String)
     case invalidResponse
@@ -135,14 +143,13 @@ final class APIClient {
     }
 
     /// Builds a multipart/form-data request. `post`/`patch` above only speak
-    /// JSON, so uploads (the video file itself) need this instead.
-    private func multipartRequest(
+    /// JSON, so uploads (video files, chat attachments) need this instead.
+    /// Internal rather than private so other APIClient extensions (e.g.
+    /// APIClient+Chat.swift) can build multipart requests of their own.
+    func multipartRequest(
         _ path: String,
         fields: [String: String],
-        fileField: String,
-        fileData: Data,
-        fileName: String,
-        mimeType: String,
+        files: [MultipartFile],
         userId: String?
     ) -> URLRequest {
         var request = URLRequest(url: baseURL.appendingPathComponent(path))
@@ -159,14 +166,29 @@ final class APIClient {
             body.append("Content-Disposition: form-data; name=\"\(key)\"\r\n\r\n".data(using: .utf8)!)
             body.append("\(value)\r\n".data(using: .utf8)!)
         }
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"\(fileField)\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
-        body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
-        body.append(fileData)
-        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+        for file in files {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(file.fieldName)\"; filename=\"\(file.fileName)\"\r\n".data(using: .utf8)!)
+            body.append("Content-Type: \(file.mimeType)\r\n\r\n".data(using: .utf8)!)
+            body.append(file.data)
+            body.append("\r\n".data(using: .utf8)!)
+        }
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
 
         request.httpBody = body
         return request
+    }
+
+    func postMultipart<T: Decodable>(
+        _ path: String,
+        fields: [String: String] = [:],
+        files: [MultipartFile],
+        userId: String? = nil
+    ) async throws -> T {
+        let request = multipartRequest(path, fields: fields, files: files, userId: userId)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try Self.validate(response, data: data)
+        return try decoder.decode(T.self, from: data)
     }
 
     @discardableResult
@@ -187,18 +209,12 @@ final class APIClient {
         if let duration, !duration.isEmpty { fields["duration"] = duration }
         if pinned, let pinLabel { fields["pinLabel"] = pinLabel }
 
-        let request = multipartRequest(
+        return try await postMultipart(
             "videos",
             fields: fields,
-            fileField: "file",
-            fileData: fileData,
-            fileName: fileName,
-            mimeType: mimeType,
+            files: [MultipartFile(fieldName: "file", fileName: fileName, mimeType: mimeType, data: fileData)],
             userId: userId
         )
-        let (data, response) = try await URLSession.shared.data(for: request)
-        try Self.validate(response, data: data)
-        return try decoder.decode(VideoItem.self, from: data)
     }
 
     @discardableResult

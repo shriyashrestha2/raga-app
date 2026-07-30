@@ -30,6 +30,9 @@ async function main() {
   await prisma.reminderTaskCompletion.deleteMany();
   await prisma.reminder.deleteMany();
   await prisma.calendarEvent.deleteMany();
+  await prisma.chatReaction.deleteMany();
+  await prisma.chatAttachment.deleteMany();
+  await prisma.chatMessage.deleteMany();
   await prisma.user.deleteMany();
 
   // One demo user per role.

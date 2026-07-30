@@ -16,9 +16,17 @@ final class AppState: ObservableObject {
     let videoSets = ["All", "Set 1", "Set 2", "Set 3", "Full Run"]
 
     private static let loggedInUserIdKey = "loggedInUserId"
+    /// App-wide "new content" watcher (chat, reminders/announcements,
+    /// videos) — see NotificationPoller. Runs for as long as someone's
+    /// logged in, independent of which tab is visible.
+    private let notificationPoller = NotificationPoller()
 
     init() {
         currentUserId = UserDefaults.standard.string(forKey: Self.loggedInUserIdKey)
+        if let currentUserId {
+            LocalNotificationService.shared.requestAuthorization()
+            notificationPoller.start(userId: currentUserId)
+        }
     }
 
     /// The server is the source of truth for the current user's role and
@@ -42,12 +50,15 @@ final class AppState: ObservableObject {
     func logIn(user: AppUser) {
         currentUserId = user.id
         UserDefaults.standard.set(user.id, forKey: Self.loggedInUserIdKey)
+        LocalNotificationService.shared.requestAuthorization()
+        notificationPoller.start(userId: user.id)
         Task { await loadAll() }
     }
 
     func logOut() {
         currentUserId = nil
         UserDefaults.standard.removeObject(forKey: Self.loggedInUserIdKey)
+        notificationPoller.stop()
         capabilities = nil
         users = []
         updates = []

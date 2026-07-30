@@ -124,6 +124,13 @@ export function isBoardRole(role: RoleName): boolean {
   return role === "CAPTAIN" || role === "FINANCE" || role === "PRODUCTION" || role === "LOGISTICS" || role === "PR";
 }
 
+/** Pinning a chat message is a moderation action, same board-only bar as
+ * deleting a notification — everyone can post/react in Chat, but only board
+ * positions can pin/unpin. */
+export function canPinChatMessage(role: RoleName): boolean {
+  return isBoardRole(role);
+}
+
 /** `createdById`/`currentUserId` are only relevant for categories with no
  * role owner (currently just REMINDER, personal-reminder-linked events) —
  * the creator can always edit/delete their own event regardless of role. */
@@ -202,6 +209,7 @@ export interface Capabilities {
   roleManagement: { canAccess: boolean };
   reminders: { canCreate: boolean; lockedCategory: CategoryName | null };
   notifications: { canDeleteAny: boolean };
+  chat: { canPinAny: boolean };
 }
 
 export function buildCapabilities(role: RoleName): Capabilities {
@@ -226,6 +234,7 @@ export function buildCapabilities(role: RoleName): Capabilities {
     roleManagement: { canAccess: canManageRoles(role) },
     reminders: { canCreate: canCreateReminder(role), lockedCategory: ownedCategory(role) },
     notifications: { canDeleteAny: isBoardRole(role) },
+    chat: { canPinAny: canPinChatMessage(role) },
   };
 }
 

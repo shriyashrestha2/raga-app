@@ -55,6 +55,8 @@ struct FinesTrackerSectionView: View {
                 }
 
                 FinesByOffenseChart(slices: byOffense)
+
+                individualFinesSection
             }
 
             if canManageFines {
@@ -86,6 +88,36 @@ struct FinesTrackerSectionView: View {
                         issuedAt: issuedAt,
                         dueDate: dueDate,
                         userId: userId
+                    )
+                }
+            }
+        }
+    }
+
+    /// Line-item breakdown of every fine `finesViewModel.fines` currently
+    /// holds — reason, amount, status, and who issued it — so amounts can be
+    /// checked against the Fine Schedule below rather than just trusting the
+    /// aggregate totals above. Board viewers see everyone's; non-board
+    /// viewers only ever have their own in that list (server-filtered), so
+    /// the heading adjusts rather than the content.
+    private var individualFinesSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(canManageFines ? "All Fines" : "Your Fines")
+                .font(.headline)
+
+            VStack(spacing: 8) {
+                ForEach(finesViewModel.fines) { fine in
+                    FineCardView(
+                        fine: fine,
+                        canManage: canManageFines,
+                        onSetStatus: { status in
+                            guard let userId = appState.currentUserId else { return }
+                            Task { await finesViewModel.setStatus(fineId: fine.id, status: status, userId: userId) }
+                        },
+                        onDelete: {
+                            guard let userId = appState.currentUserId else { return }
+                            Task { await finesViewModel.delete(fineId: fine.id, userId: userId) }
+                        }
                     )
                 }
             }

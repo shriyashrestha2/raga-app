@@ -11,6 +11,16 @@ struct FineCardView: View {
         return dollars.formatted(.currency(code: "USD"))
     }
 
+    // dueDate is stored as a UTC-midnight, date-only value (see backend's
+    // Fine.dueDate) — format in UTC so it doesn't shift a day earlier here
+    // for anyone west of UTC, matching the fix already applied server-side
+    // to the same value in fines.ts/scheduler.ts.
+    private var dueDateText: String? {
+        guard let dueDate = fine.dueDate, fine.status == .unpaid else { return nil }
+        let style = Date.FormatStyle(timeZone: TimeZone(identifier: "UTC")!).month(.abbreviated).day().year()
+        return "Due \(dueDate.formatted(style))"
+    }
+
     var body: some View {
         HStack(spacing: 0) {
             Rectangle()
@@ -48,6 +58,12 @@ struct FineCardView: View {
                     Text(fine.issuedAt, style: .relative)
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
+
+                    if let dueDateText {
+                        Text(dueDateText)
+                            .font(.caption2.bold())
+                            .foregroundStyle(.orange)
+                    }
                 }
 
                 if canManage {

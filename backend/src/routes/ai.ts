@@ -1,11 +1,28 @@
 import { Router } from "express";
 import { z } from "zod";
+import rateLimit from "express-rate-limit";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireUser } from "../middleware/currentUser.js";
 import { canUseAiAssistant } from "../permissions.js";
 
 export const aiRouter = Router();
 aiRouter.use(requireUser);
+
+// Caps API spend if a bug (or someone spamming Generate) starts firing
+// requests in a loop — keyed per person, not per IP, since board members on
+// the same WiFi at practice would otherwise share one bucket. 30/hour is
+// generous for real drafting (including back-and-forth on a clarifying
+// question) but stops a runaway loop from burning through the budget.
+aiRouter.use(
+  rateLimit({
+    windowMs: 60 * 60 * 1000,
+    limit: 30,
+    keyGenerator: (req) => req.currentUser!.id,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "You've hit the AI assistant's hourly limit. Try again in a bit." },
+  })
+);
 
 // Reads ANTHROPIC_API_KEY from the environment — never sent to or callable
 // directly from the iOS client.
@@ -125,11 +142,16 @@ aiRouter.post("/draft", async (req, res) => {
   let response;
   try {
     response = await anthropic.messages.create({
-      model: "claude-opus-5",
+      // Deliberately not the default (claude-opus-5) — chosen for cost given
+      // a small fixed API budget. Below this model's 4096-token cache
+      // minimum, the system prompt (~2,614 tokens) won't actually cache —
+      // the marker is left in case the prompt grows past that or the model
+      // changes back. Haiku 4.5 doesn't support `output_config.effort` at
+      // all (errors if set), unlike Opus/Sonnet — omitted, not disabled.
+      model: "claude-haiku-4-5",
       max_tokens: 1024,
-      system: SYSTEM_PROMPT,
+      system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
       output_config: {
-        effort: "medium",
         format: {
           type: "json_schema",
           schema: {
@@ -149,6 +171,9 @@ aiRouter.post("/draft", async (req, res) => {
       },
       messages: [{ role: "user", content: parsed.data.prompt }],
     });
+    // Cheap spend visibility given the small budget — cache_read_input_tokens
+    // being non-zero confirms the system-prompt caching above is landing.
+    console.log("AI assistant usage", req.currentUser!.id, response.usage);
   } catch (err) {
     console.error("AI assistant request failed", err);
     return res.status(502).json({ error: "The assistant is unavailable right now. Try again shortly." });

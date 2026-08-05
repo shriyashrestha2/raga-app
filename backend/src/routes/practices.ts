@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../prisma.js";
 import { requireUser } from "../middleware/currentUser.js";
-import { canEditPracticeAttendance } from "../permissions.js";
+import { canEditPracticeAttendance, canCreatePractice, canViewPracticeDetail } from "../permissions.js";
 
 export const practicesRouter = Router();
 practicesRouter.use(requireUser);
@@ -13,6 +13,7 @@ function summarize(practice: {
   location: string;
   focus: string;
   reminder: string | null;
+  kind: "PRACTICE" | "PROPS_DAY";
   rsvps: { userId: string; response: "YES" | "NO"; reason: string | null }[];
   attendance: { userId: string; status: "PRESENT" | "ABSENT" | "LATE" | "EXCUSED" }[];
 }, currentUserId: string) {
@@ -27,6 +28,7 @@ function summarize(practice: {
     location: practice.location,
     focus: practice.focus,
     reminder: practice.reminder,
+    kind: practice.kind,
     rsvpYes,
     rsvpNo,
     myRsvp: mine ? { response: mine.response, reason: mine.reason } : null,
@@ -34,8 +36,9 @@ function summarize(practice: {
   };
 }
 
-// Full per-dancer breakdown, captains only (per PRD: RSVP reasons visible to captains).
-function captainDetail(practice: {
+// Full per-dancer breakdown — visible per canViewPracticeDetail (Captain
+// always, Production only on PROPS_DAY sessions they run).
+function practiceDetail(practice: {
   rsvps: { user: { name: string }; response: "YES" | "NO"; reason: string | null }[];
 }) {
   return practice.rsvps.map((r) => ({
@@ -47,7 +50,7 @@ function captainDetail(practice: {
 
 practicesRouter.get("/", async (req, res) => {
   const currentUserId = req.currentUser!.id;
-  const asCaptain = req.currentUser!.role === "CAPTAIN";
+  const role = req.currentUser!.role;
 
   const practices = await prisma.practice.findMany({
     include: { rsvps: { include: { user: true } }, attendance: true },
@@ -57,7 +60,7 @@ practicesRouter.get("/", async (req, res) => {
   res.json(
     practices.map((p) => ({
       ...summarize(p, currentUserId),
-      detail: asCaptain ? captainDetail(p) : undefined,
+      detail: canViewPracticeDetail(role, p.kind) ? practiceDetail(p) : undefined,
     }))
   );
 });
@@ -67,15 +70,16 @@ const createPracticeSchema = z.object({
   location: z.string().min(1),
   focus: z.string().min(1),
   reminder: z.string().optional(),
+  kind: z.enum(["PRACTICE", "PROPS_DAY"]).default("PRACTICE"),
 });
 
 practicesRouter.post("/", async (req, res) => {
-  if (req.currentUser!.role !== "CAPTAIN") {
-    return res.status(403).json({ error: "You don't have access to this." });
-  }
   const parsed = createPracticeSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.flatten() });
+  }
+  if (!canCreatePractice(req.currentUser!.role, parsed.data.kind)) {
+    return res.status(403).json({ error: "You don't have access to this." });
   }
   const practice = await prisma.practice.create({ data: parsed.data });
   res.status(201).json(practice);

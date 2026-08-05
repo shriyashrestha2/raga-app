@@ -69,21 +69,38 @@ struct NotificationsSectionView: View {
         return appState.practices.first { calendar.isDate($0.date, inSameDayAs: selectedDate) }
     }
 
+    /// CalendarEvents (Finance/Production/Captains/Social/Logistics) on the
+    /// selected day — these are what actually produce MiniCalendarView's
+    /// colored dots, but live in a separate backend model from Reminders, so
+    /// without this they'd never appear anywhere once tapped (a dot with
+    /// nothing behind it). `.practice`-category events are excluded since
+    /// they'd just duplicate the real Practice's own card above. Reminders
+    /// stay excluded from calendar dots by design (see backend/prisma/
+    /// schema.prisma's Reminder model comment) — this only closes the other
+    /// direction, so every dot has something to show when tapped.
+    private var selectedDateEvents: [CalendarEventItem] {
+        guard let selectedDate else { return [] }
+        let calendar = Calendar.current
+        return appState.calendarEvents
+            .filter { $0.category != .practice && calendar.isDate($0.date, inSameDayAs: selectedDate) }
+            .sorted { $0.date < $1.date }
+    }
+
     private struct DateGroup: Identifiable {
         let date: Date
         let items: [NotificationFeedItem]
         var id: Date { date }
     }
 
-    /// Grouped by calendar day and sorted newest-to-oldest — a date header
+    /// Grouped by calendar day and sorted soonest-due-first — a date header
     /// only appears for a day that has at least one item in the current
     /// filter, since this groups `filteredItems`, not `allItems`.
     private var dateGroups: [DateGroup] {
         let calendar = Calendar.current
         let byDay = Dictionary(grouping: filteredItems) { calendar.startOfDay(for: $0.sortDate) }
         return byDay
-            .map { DateGroup(date: $0.key, items: $0.value.sorted { $0.sortDate > $1.sortDate }) }
-            .sorted { $0.date > $1.date }
+            .map { DateGroup(date: $0.key, items: $0.value.sorted { $0.sortDate < $1.sortDate }) }
+            .sorted { $0.date < $1.date }
     }
 
     var body: some View {
@@ -112,7 +129,15 @@ struct NotificationsSectionView: View {
                 )
             }
 
-            if filteredItems.isEmpty && selectedDatePractice == nil && !store.isLoading {
+            if !selectedDateEvents.isEmpty {
+                VStack(spacing: 8) {
+                    ForEach(selectedDateEvents) { event in
+                        CalendarEventRowView(event: event)
+                    }
+                }
+            }
+
+            if filteredItems.isEmpty && selectedDatePractice == nil && selectedDateEvents.isEmpty && !store.isLoading {
                 EmptyStateView(
                     icon: "bell.fill",
                     title: selectedDate != nil ? "Nothing on this day" : "No notifications",
@@ -242,5 +267,27 @@ struct NotificationsSectionView: View {
         .tint(filter == option ? Color("AccentColor") : .gray)
         .buttonBorderShape(.capsule)
         .controlSize(.small)
+    }
+}
+
+/// Read-only info row for a CalendarEvent on the selected day — these have no
+/// RSVP/task/dismiss affordance of their own (unlike reminders/announcements),
+/// they're just what the calendar dot above was pointing at.
+private struct CalendarEventRowView: View {
+    let event: CalendarEventItem
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Circle().fill(event.category.color).frame(width: 8, height: 8)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(event.label).font(.subheadline.bold())
+                Text(event.category.label).font(.caption2).foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding(12)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color(.separator), lineWidth: 0.5))
     }
 }

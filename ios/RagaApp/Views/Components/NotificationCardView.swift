@@ -13,9 +13,22 @@ struct NotificationCardView: View {
 
     private var category: CalendarCategory { item.displayCategory }
 
+    /// A task-type reminder the current user has checked off — grayed out
+    /// (rather than removed from the feed) so it's still visible as
+    /// completed, distinct from swipe-to-dismiss which actually hides it.
+    private var isCompletedTask: Bool {
+        if case .reminder(let r) = item, r.type == .task { return r.doneByMe }
+        return false
+    }
+
+    /// Accent color for the stripe/avatar/type pill — muted to gray once a
+    /// task is completed instead of the category color, so a done item reads
+    /// as "checked off" at a glance rather than competing with still-open ones.
+    private var accent: Color { isCompletedTask ? .secondary : category.color }
+
     var body: some View {
         HStack(spacing: 0) {
-            Rectangle().fill(category.color).frame(width: 4)
+            Rectangle().fill(accent).frame(width: 4)
 
             HStack(alignment: .center, spacing: 12) {
                 avatar
@@ -25,26 +38,19 @@ struct NotificationCardView: View {
                         if item.isAnnouncement {
                             Image(systemName: "bell.fill")
                                 .font(.caption2)
-                                .foregroundStyle(category.color)
+                                .foregroundStyle(accent)
                         }
-                        if item.pinned {
-                            Text("PINNED")
-                                .font(.caption2.bold())
-                                .foregroundStyle(Color("AccentColor"))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(Color("AccentColor").opacity(0.12), in: Capsule())
-                        }
-                        Text(item.typeLabel.uppercased())
+                        Text(isCompletedTask ? "DONE" : item.typeLabel.uppercased())
                             .font(.caption2.bold())
-                            .foregroundStyle(category.color)
+                            .foregroundStyle(accent)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 3)
-                            .background(category.color.opacity(0.12), in: Capsule())
+                            .background(accent.opacity(0.12), in: Capsule())
                     }
 
                     Text(item.title)
                         .font(.subheadline.bold())
+                        .strikethrough(isCompletedTask)
                         .lineLimit(2)
 
                     if !compact, let bodyText = item.bodyText, !bodyText.isEmpty {
@@ -71,6 +77,11 @@ struct NotificationCardView: View {
             }
             .padding(14)
         }
+        // Opacity dims only this content layer, applied before .background()
+        // so the card's own background stays fully opaque — otherwise it
+        // would let whatever sits behind it in the feed (SwipeToDismissView's
+        // green "Clear" reveal) show through a translucent card.
+        .opacity(isCompletedTask ? 0.55 : 1)
         .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(Color(.separator), lineWidth: 0.5))
@@ -80,9 +91,9 @@ struct NotificationCardView: View {
     private var avatar: some View {
         Text(item.authorInitials)
             .font(.caption.bold())
-            .foregroundStyle(category.color)
+            .foregroundStyle(accent)
             .frame(width: 36, height: 36)
-            .background(category.color.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     @ViewBuilder

@@ -34,31 +34,3 @@ struct FundingBreakdownChart: View {
         .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(Color(.separator), lineWidth: 0.5))
     }
 }
-
-struct FineOffenseSlice: Identifiable {
-    let id = UUID()
-    let offense: String
-    let count: Int
-}
-
-/// Horizontal bar chart of fine counts per offense type — horizontal reads
-/// better than vertical here since offense labels can be long.
-struct FinesByOffenseChart: View {
-    let slices: [FineOffenseSlice]
-
-    var body: some View {
-        Chart(slices) { slice in
-            BarMark(
-                x: .value("Fines", slice.count),
-                y: .value("Offense", slice.offense)
-            )
-            .foregroundStyle(Color("AccentColor"))
-            .cornerRadius(4)
-        }
-        .frame(height: CGFloat(slices.count) * 34 + 20)
-        .padding(14)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(Color(.separator), lineWidth: 0.5))
-    }
-}

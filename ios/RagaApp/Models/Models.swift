@@ -68,6 +68,29 @@ enum RsvpResponse: String, Codable {
     case no = "NO"
 }
 
+/// Captains create/manage PRACTICE sessions (the default); Production chairs
+/// create/manage PROPS_DAY sessions — both share the exact same RSVP list,
+/// UI, and card style, just with different create/detail-visibility gating
+/// (see backend/src/permissions.ts's canCreatePractice/canViewPracticeDetail).
+enum PracticeKind: String, Codable, CaseIterable {
+    case practice = "PRACTICE"
+    case propsDay = "PROPS_DAY"
+
+    var label: String {
+        switch self {
+        case .practice: return "Practice"
+        case .propsDay: return "Props Day"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .practice: return "figure.dance"
+        case .propsDay: return "tshirt.fill"
+        }
+    }
+}
+
 enum CalendarCategory: String, Codable, CaseIterable {
     case finance = "FINANCE"
     case practice = "PRACTICE"
@@ -111,6 +134,7 @@ struct Capabilities: Codable {
     struct CalendarCapability: Codable { let canEditAny: Bool; let editableCategory: Role? }
     struct AttendanceCapability: Codable { let canEditAny: Bool; let editableCategory: Role? }
     struct PracticeAttendanceCapability: Codable { let canManageAny: Bool }
+    struct PracticesCapability: Codable { let canCreatePractice: Bool; let canCreatePropsDay: Bool }
     struct AnnouncementsCapability: Codable { let canPostTeamWide: Bool; let ownChannelRole: Role? }
     struct VideosCapability: Codable { let canUpload: Bool }
     struct AccessOnly: Codable { let canAccess: Bool }
@@ -128,6 +152,7 @@ struct Capabilities: Codable {
     let calendar: CalendarCapability
     let attendance: AttendanceCapability
     let practiceAttendance: PracticeAttendanceCapability
+    let practices: PracticesCapability
     let announcements: AnnouncementsCapability
     let videos: VideosCapability
     let practicePlanner: AccessOnly
@@ -139,7 +164,6 @@ struct Capabilities: Codable {
     let fines: ViewManageCapability
     let quotas: ViewManageCapability
     let fundraising: ViewManageCapability
-    let fineSchedule: ViewManageCapability
     let compApplications: AccessOnly
     let competitionDashboard: CompetitionDashboardCapability
     let teamInfo: TeamInfoCapability
@@ -160,7 +184,6 @@ struct UpdateItem: Codable, Identifiable {
     let id: String
     let tag: UpdateTag
     let content: String
-    let pinned: Bool
     let audienceRole: Role?
     /// Roles allowed to see this update; empty means visible to everyone.
     let visibleToRoles: [Role]
@@ -186,6 +209,7 @@ struct PracticeItem: Codable, Identifiable {
     let location: String
     let focus: String
     let reminder: String?
+    let kind: PracticeKind
     let rsvpYes: Int
     let rsvpNo: Int
     let myRsvp: RsvpMine?

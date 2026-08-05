@@ -7,10 +7,10 @@ async function main() {
   await prisma.practiceAgendaItem.deleteMany();
   await prisma.practicePlan.deleteMany();
   await prisma.attendance.deleteMany();
+  await prisma.practiceAttendance.deleteMany();
   await prisma.propCostumeAssignment.deleteMany();
   await prisma.propCostumeItem.deleteMany();
   await prisma.fine.deleteMany();
-  await prisma.fineScheduleItem.deleteMany();
   await prisma.fund.deleteMany();
   await prisma.quotaContribution.deleteMany();
   await prisma.quota.deleteMany();
@@ -67,7 +67,6 @@ async function main() {
         tag: "ANNOUNCEMENT",
         content:
           "We got the stage slot! Performance confirmed for Oct 18 at Rutgers Day. Full run-through this Saturday — everyone must attend.",
-        pinned: true,
       },
       {
         authorId: captain.id,
@@ -209,54 +208,6 @@ async function main() {
       { amountCents: 60000, source: "Member Dues", dateAdded: new Date("2026-10-08"), createdById: finance.id },
       { amountCents: 22500, source: "Instagram Fundraiser Post", dateAdded: new Date("2026-10-15"), createdById: finance.id },
     ],
-  });
-
-  // Fine schedule: the team's standard offense list. Four offenses don't
-  // have one fixed dollar figure (Summer video scales by days late, Props
-  // productivity isn't finalized, both Concessions fines depend on an
-  // external Gourmet Dining charge) — those store a plain-text `description`
-  // of the rule instead of `amountCents`, which signals the client to leave
-  // the new-fine Amount field blank rather than auto-filling it.
-  const fineScheduleData: { offense: string; amountCents?: number; description?: string }[] = [
-    { offense: "Late to Practice", amountCents: 500 },
-    { offense: "No Show to Practice", amountCents: 1000 },
-    { offense: "Not Submitting Practice Video (Winter)", amountCents: 4000 },
-    {
-      offense: "Not Submitting Practice Video on Time (Summer)",
-      description: "$10 base fine, plus $5 for each additional day late",
-    },
-    { offense: "Late to Props", amountCents: 500 },
-    { offense: "No Show to Props", amountCents: 1000 },
-    {
-      offense: "Significant Lack of Productivity During Props",
-      description: "Amount not yet finalized — flag for admin review before enforcing",
-    },
-    { offense: "Late to a Fundraiser", amountCents: 500 },
-    { offense: "No Show to a Fundraiser", amountCents: 2000 },
-    { offense: "Late to Concessions", description: "Fine amount set by Gourmet Dining, not fixed" },
-    {
-      offense: "No Show to Concessions",
-      description: "$60, or the fine amount set by Gourmet Dining, whichever applies",
-    },
-    { offense: "Late to Photoshoot", amountCents: 500 },
-    { offense: "Late to a Social Event", amountCents: 500 },
-    { offense: "No Show to a Social Event", amountCents: 2000 },
-    { offense: "Missed or Late Social Media Repost", amountCents: 500 },
-    { offense: "Late Response to a Poll or Task", amountCents: 500 },
-    { offense: "Missed Reminder", amountCents: 500 },
-    { offense: "Failure to Keep Information Up to Date", amountCents: 500 },
-    { offense: "Missed Deadline", amountCents: 500 },
-    { offense: "Failure to Enforce a Fine Within 48 Hours", amountCents: 500 },
-    { offense: "Confidentiality Breach", amountCents: 1500 },
-    { offense: "Late Payment of Remaining Fundraising Quota", amountCents: 500 },
-  ];
-  await prisma.fineScheduleItem.createMany({
-    data: fineScheduleData.map((item, index) => ({
-      offense: item.offense,
-      amountCents: item.amountCents ?? null,
-      description: item.description ?? null,
-      order: index,
-    })),
   });
 
   // currentValue is derived from contributions (see routes/quotas.ts), so

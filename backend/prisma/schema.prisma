@@ -145,7 +145,6 @@ model Update {
   authorId          String
   tag               UpdateTag
   content           String
-  pinned            Boolean   @default(false)
   audienceRole      Role?
   // Comma-separated Role values gating who can see this update; empty means
   // visible to everyone. Same encoding as CalendarEvent.visibleToRoles (see
@@ -166,13 +165,23 @@ model Update {
   relatedFine   Fine?   @relation(fields: [relatedFineId], references: [id], onDelete: Cascade)
 }
 
+enum PracticeKind {
+  PRACTICE
+  PROPS_DAY
+}
+
 model Practice {
-  id        String   @id @default(cuid())
+  id        String       @id @default(cuid())
   date      DateTime
   location  String
   focus     String
   reminder  String?
-  createdAt DateTime @default(now())
+  // Captains create PRACTICE (the default); Production chairs create
+  // PROPS_DAY — both share the exact same RSVP mechanism and list, just
+  // gated differently on create and on who sees the per-dancer detail
+  // breakdown (see permissions.ts's canCreatePractice/canViewPracticeDetail).
+  kind      PracticeKind @default(PRACTICE)
+  createdAt DateTime     @default(now())
 
   rsvps      Rsvp[]
   plans      PracticePlan[]
@@ -526,22 +535,6 @@ model Fund {
   createdById String
   createdBy   User     @relation("FundCreatedBy", fields: [createdById], references: [id])
   createdAt   DateTime @default(now())
-}
-
-// The editable list of standard offenses shown in the Fines Tracker. Most
-// offenses have a fixed `amountCents`; a few (see team-app-prd.md /
-// the Finance tab spec) don't have one fixed number — those store a
-// plain-text `description` of the rule instead and leave `amountCents` null,
-// which signals the client to leave the new-fine Amount field blank rather
-// than auto-filling it.
-model FineScheduleItem {
-  id          String   @id @default(cuid())
-  offense     String
-  amountCents Int?
-  description String?
-  order       Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 }
 
 // Chat tab: one flat, team-wide channel — no threads or DMs. Kept

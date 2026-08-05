@@ -66,11 +66,6 @@ enum NotificationFeedItem: Identifiable {
         }
     }
 
-    var pinned: Bool {
-        if case .announcement(let u) = self { return u.pinned }
-        return false
-    }
-
     /// Drives the bell icon — announcements are broadcasts to the whole team,
     /// distinct from reminders (tasks/RSVPs), which never show it.
     var isAnnouncement: Bool {

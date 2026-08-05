@@ -37,7 +37,7 @@ updatesRouter.get("/", async (req, res) => {
   const currentUserId = req.currentUser!.id;
   const updates = await prisma.update.findMany({
     include: { author: true },
-    orderBy: [{ pinned: "desc" }, { createdAt: "desc" }],
+    orderBy: { createdAt: "desc" },
   });
   res.json(updates.filter((u) => canViewUpdate(currentUserId, role, u)).map(serializeUpdate));
 });
@@ -45,7 +45,6 @@ updatesRouter.get("/", async (req, res) => {
 const createUpdateSchema = z.object({
   tag: z.enum(["ANNOUNCEMENT", "COSTUME_LOGISTICS", "CHOREO_NOTES"]),
   content: z.string().min(1),
-  pinned: z.boolean().optional(),
   audienceRole: z.enum(ROLES).nullable().optional(),
   visibleToRoles: z.array(z.enum(ROLES)).optional(),
 });
@@ -74,7 +73,6 @@ updatesRouter.post("/", async (req, res) => {
       authorId: req.currentUser!.id,
       tag: parsed.data.tag,
       content: parsed.data.content,
-      pinned: parsed.data.pinned ?? false,
       audienceRole: audienceRole ?? undefined,
       visibleToRoles: rolesToString(parsed.data.visibleToRoles),
     },

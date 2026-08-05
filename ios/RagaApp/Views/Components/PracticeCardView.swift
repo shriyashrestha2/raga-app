@@ -16,10 +16,25 @@ struct PracticeCardView: View {
         return Double(practice.rsvpYes) / Double(total)
     }
 
+    /// The server only includes the per-dancer breakdown when the current
+    /// role is allowed to see it for this specific session (Captain always,
+    /// Production only on PROPS_DAY) — so its presence alone tells us
+    /// whether to show the manager view or the plain RSVP buttons, without
+    /// duplicating that role/kind logic client-side.
+    private var isManagerView: Bool { practice.detail != nil }
+
+    private var dateBadgeColor: Color {
+        practice.kind == .propsDay ? .purple : Color("AccentColor")
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
                 VStack(spacing: 2) {
+                    Text(practice.date, format: .dateTime.month(.abbreviated))
+                        .font(.caption2.bold())
+                        .foregroundStyle(.white.opacity(0.75))
+                        .textCase(.uppercase)
                     Text(practice.date, format: .dateTime.day())
                         .font(.title2.bold())
                         .foregroundStyle(.white)
@@ -29,11 +44,21 @@ struct PracticeCardView: View {
                 }
                 .frame(width: 64)
                 .frame(maxHeight: .infinity)
-                .background(Color("AccentColor"))
+                .background(dateBadgeColor)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(practice.focus)
-                        .font(.subheadline.bold())
+                    HStack(spacing: 6) {
+                        Text(practice.focus)
+                            .font(.subheadline.bold())
+                        if practice.kind == .propsDay {
+                            Label("PROPS DAY", systemImage: practice.kind.symbol)
+                                .font(.caption2.bold())
+                                .foregroundStyle(.purple)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.purple.opacity(0.12), in: Capsule())
+                        }
+                    }
                     Label(practice.date.formatted(date: .omitted, time: .shortened), systemImage: "clock")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -58,8 +83,8 @@ struct PracticeCardView: View {
             Divider()
 
             Group {
-                if role == .captain {
-                    captainSummary
+                if isManagerView {
+                    managerSummary
                 } else {
                     returnerActions
                 }
@@ -71,18 +96,42 @@ struct PracticeCardView: View {
         .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(Color(.separator), lineWidth: 0.5))
     }
 
-    private var captainSummary: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text("RSVP Status")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text("\(practice.rsvpYes) yes").font(.caption.bold()).foregroundStyle(.green)
-                Text("\(practice.rsvpNo) no").font(.caption.bold()).foregroundStyle(Color("AccentColor"))
+    private var managerSummary: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("RSVP Status")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(practice.rsvpYes) yes").font(.caption.bold()).foregroundStyle(.green)
+                    Text("\(practice.rsvpNo) no").font(.caption.bold()).foregroundStyle(Color("AccentColor"))
+                }
+                ProgressView(value: yesFraction)
+                    .tint(.green)
             }
-            ProgressView(value: yesFraction)
-                .tint(.green)
+
+            if let detail = practice.detail, !detail.isEmpty {
+                Divider()
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(detail) { entry in
+                        HStack(spacing: 6) {
+                            Image(systemName: entry.response == .yes ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .font(.caption)
+                                .foregroundStyle(entry.response == .yes ? .green : Color("AccentColor"))
+                            Text(entry.name)
+                                .font(.caption.bold())
+                            if let reason = entry.reason, !reason.isEmpty {
+                                Text("· \(reason)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                    }
+                }
+            }
         }
     }
 

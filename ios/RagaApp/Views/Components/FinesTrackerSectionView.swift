@@ -1,36 +1,21 @@
 import SwiftUI
 
-/// Fines Tracker tab: team-wide summary numbers, a per-offense breakdown
-/// chart, a log-new-fine form, and the editable fine schedule. Reuses the
-/// existing Fines API/permission model — board roles (per
+/// Fines Tracker tab: team-wide summary numbers and a log-new-fine form.
+/// Reuses the existing Fines API/permission model — board roles (per
 /// Capabilities.fines.canViewAny) see everyone's fines, Captain/Finance
 /// additionally log/edit them, and everyone else sees only their own,
 /// server-filtered.
 struct FinesTrackerSectionView: View {
     @EnvironmentObject private var appState: AppState
     @StateObject private var finesViewModel = FinesViewModel()
-    @StateObject private var scheduleViewModel = FineScheduleViewModel()
     @State private var showingNewFine = false
-    @State private var showingScheduleEditor = false
 
     private var canManageFines: Bool {
         appState.capabilities?.fines.canManageAny == true
     }
 
-    private var canManageSchedule: Bool {
-        appState.capabilities?.fineSchedule.canManageAny == true
-    }
-
     private var totalCollectedCents: Int {
         finesViewModel.fines.filter { $0.status == .paid }.reduce(0) { $0 + $1.amountCents }
-    }
-
-    private var byOffense: [FineOffenseSlice] {
-        let grouped = Dictionary(grouping: finesViewModel.fines, by: \.reason)
-        let slices: [FineOffenseSlice] = grouped.map { offense, fines in
-            FineOffenseSlice(offense: offense, count: fines.count)
-        }
-        return slices.sorted { $0.count > $1.count }
     }
 
     var body: some View {
@@ -54,8 +39,6 @@ struct FinesTrackerSectionView: View {
                     )
                 }
 
-                FinesByOffenseChart(slices: byOffense)
-
                 individualFinesSection
             }
 
@@ -69,15 +52,12 @@ struct FinesTrackerSectionView: View {
                 .buttonStyle(.bordered)
                 .tint(Color("AccentColor"))
             }
-
-            fineScheduleSection
         }
         .task {
             await loadFines()
-            await loadSchedule()
         }
         .sheet(isPresented: $showingNewFine) {
-            NewFineEntrySheet(users: appState.users, schedule: scheduleViewModel.entries) { targetUserId, reason, issuedAt, amountCents, status, dueDate in
+            NewFineEntrySheet(users: appState.users) { targetUserId, reason, issuedAt, amountCents, status, dueDate in
                 guard let userId = appState.currentUserId else { return }
                 Task {
                     await finesViewModel.createFine(
@@ -95,11 +75,9 @@ struct FinesTrackerSectionView: View {
     }
 
     /// Line-item breakdown of every fine `finesViewModel.fines` currently
-    /// holds — reason, amount, status, and who issued it — so amounts can be
-    /// checked against the Fine Schedule below rather than just trusting the
-    /// aggregate totals above. Board viewers see everyone's; non-board
-    /// viewers only ever have their own in that list (server-filtered), so
-    /// the heading adjusts rather than the content.
+    /// holds — reason, amount, status, and who issued it. Board viewers see
+    /// everyone's; non-board viewers only ever have their own in that list
+    /// (server-filtered), so the heading adjusts rather than the content.
     private var individualFinesSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(canManageFines ? "All Fines" : "Your Fines")
@@ -124,69 +102,24 @@ struct FinesTrackerSectionView: View {
         }
     }
 
-    private var fineScheduleSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Fine Schedule")
-                    .font(.headline)
-                Spacer()
-                if canManageSchedule {
-                    Button {
-                        showingScheduleEditor = true
-                    } label: {
-                        Label("Edit", systemImage: "pencil")
-                            .font(.caption.bold())
-                    }
-                }
-            }
-
-            VStack(spacing: 8) {
-                ForEach(scheduleViewModel.entries) { entry in
-                    FineScheduleRowView(entry: entry)
-                }
-            }
-        }
-        .sheet(isPresented: $showingScheduleEditor) {
-            FineScheduleEditorView(viewModel: scheduleViewModel)
-        }
-    }
-
     private func loadFines() async {
         guard let userId = appState.currentUserId else { return }
         await finesViewModel.load(userId: userId)
-    }
-
-    private func loadSchedule() async {
-        guard let userId = appState.currentUserId else { return }
-        await scheduleViewModel.load(userId: userId)
     }
 }
 
 private struct NewFineEntrySheet: View {
     @Environment(\.dismiss) private var dismiss
     let users: [AppUser]
-    let schedule: [FineScheduleEntry]
     let onCreate: (String, String, Date, Int, FineStatus, Date?) -> Void
 
     @State private var selectedUserId: String?
-    @State private var selectedOffenseId: String?
-    @State private var customReason: String = ""
+    @State private var reason: String = ""
     @State private var issuedAt: Date = Date()
     @State private var amountText: String = ""
     @State private var status: FineStatus = .unpaid
     @State private var includesDueDate = false
     @State private var dueDate: Date = Date()
-
-    private var selectedEntry: FineScheduleEntry? {
-        schedule.first(where: { $0.id == selectedOffenseId })
-    }
-
-    private var reason: String {
-        if let selectedEntry {
-            return selectedEntry.offense
-        }
-        return customReason.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
 
     private var amountCents: Int? {
         guard let dollars = Double(amountText), dollars > 0 else { return nil }
@@ -194,7 +127,7 @@ private struct NewFineEntrySheet: View {
     }
 
     private var isValid: Bool {
-        selectedUserId != nil && !reason.isEmpty && amountCents != nil
+        selectedUserId != nil && !reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && amountCents != nil
     }
 
     var body: some View {
@@ -210,32 +143,8 @@ private struct NewFineEntrySheet: View {
                 }
 
                 Section("Reason") {
-                    Picker("Offense", selection: $selectedOffenseId) {
-                        Text("Custom reason").tag(String?.none)
-                        ForEach(schedule) { entry in
-                            Text(entry.offense).tag(Optional(entry.id))
-                        }
-                    }
-                    .onChange(of: selectedOffenseId) { _, newValue in
-                        guard let entry = schedule.first(where: { $0.id == newValue }) else {
-                            amountText = ""
-                            return
-                        }
-                        if let cents = entry.amountCents {
-                            amountText = String(format: "%.2f", Double(cents) / 100.0)
-                        } else {
-                            amountText = ""
-                        }
-                    }
-
-                    if selectedOffenseId == nil {
-                        TextField("Describe the reason", text: $customReason, axis: .vertical)
-                            .lineLimit(2...4)
-                    } else if let selectedEntry, selectedEntry.isVariable, let description = selectedEntry.description {
-                        Text(description)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    TextField("Describe the reason", text: $reason, axis: .vertical)
+                        .lineLimit(2...4)
                 }
 
                 Section("Date Issued") {
@@ -274,7 +183,7 @@ private struct NewFineEntrySheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Send") {
                         guard let selectedUserId, let amountCents else { return }
-                        onCreate(selectedUserId, reason, issuedAt, amountCents, status, includesDueDate ? dueDate : nil)
+                        onCreate(selectedUserId, reason.trimmingCharacters(in: .whitespacesAndNewlines), issuedAt, amountCents, status, includesDueDate ? dueDate : nil)
                         dismiss()
                     }
                     .disabled(!isValid)

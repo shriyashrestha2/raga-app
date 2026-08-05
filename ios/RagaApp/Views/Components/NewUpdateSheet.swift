@@ -3,17 +3,16 @@ import SwiftUI
 /// Sheet for posting a new team update/announcement, styled after
 /// NewReminderSheet. `audienceRole` (which non-Captain "own channel" this
 /// posts under) is auto-scoped server-side from the poster's role — this
-/// sheet exposes content, pinning, the shared "Visible to" viewer
-/// restriction, and (board roles only) a "Draft with AI" helper that fills
-/// `content` from rough notes — see AIAssistantSheet.
+/// sheet exposes content, the shared "Visible to" viewer restriction, and
+/// (board roles only) a "Draft with AI" helper that fills `content` from
+/// rough notes — see AIAssistantSheet.
 struct NewUpdateSheet: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.dismiss) private var dismiss
-    let onCreate: (UpdateTag, String, Bool, [Role]) -> Void
+    let onCreate: (UpdateTag, String, [Role]) -> Void
 
     @State private var tag: UpdateTag = .announcement
     @State private var content: String = ""
-    @State private var pinned = false
     @State private var visibilitySelection: Set<Role> = []
     @State private var showAIAssistant = false
 
@@ -32,7 +31,6 @@ struct NewUpdateSheet: View {
                     }
                     TextField("What's the update?", text: $content, axis: .vertical)
                         .lineLimit(3...6)
-                    Toggle("Pin to top", isOn: $pinned)
 
                     if appState.capabilities?.aiAssistant.canAccess == true {
                         Button {
@@ -51,7 +49,7 @@ struct NewUpdateSheet: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Post") {
-                        onCreate(tag, content.trimmingCharacters(in: .whitespacesAndNewlines), pinned, Array(visibilitySelection))
+                        onCreate(tag, content.trimmingCharacters(in: .whitespacesAndNewlines), Array(visibilitySelection))
                         dismiss()
                     }
                     .disabled(!isValid)

@@ -141,10 +141,10 @@ final class AppState: ObservableObject {
     }
 
     @discardableResult
-    func createUpdate(tag: UpdateTag, content: String, pinned: Bool, visibleToRoles: [Role]) async -> Bool {
+    func createUpdate(tag: UpdateTag, content: String, visibleToRoles: [Role]) async -> Bool {
         guard let userId = currentUserId else { return false }
         do {
-            let created = try await APIClient.shared.createUpdate(tag: tag, content: content, pinned: pinned, visibleToRoles: visibleToRoles, userId: userId)
+            let created = try await APIClient.shared.createUpdate(tag: tag, content: content, visibleToRoles: visibleToRoles, userId: userId)
             updates.insert(created, at: 0)
             errorMessage = nil
             return true
@@ -219,6 +219,23 @@ final class AppState: ObservableObject {
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    @discardableResult
+    func createPractice(date: Date, location: String, focus: String, reminder: String?, kind: PracticeKind) async -> Bool {
+        guard let userId = currentUserId else { return false }
+        do {
+            try await APIClient.shared.createPractice(date: date, location: location, focus: focus, reminder: reminder, kind: kind, userId: userId)
+            // Reload rather than insert locally so ordering/enrichment
+            // (rsvpYes/rsvpNo, detail gating) stays server-driven, matching
+            // createVideo's pattern.
+            await loadPractices()
+            errorMessage = nil
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
         }
     }
 

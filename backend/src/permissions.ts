@@ -36,10 +36,6 @@ export function canManageFundraising(role: RoleName): boolean {
   return role === "CAPTAIN" || role === "FINANCE";
 }
 
-export function canManageFineSchedule(role: RoleName): boolean {
-  return role === "CAPTAIN" || role === "FINANCE";
-}
-
 export function canAccessCompApplications(role: RoleName): boolean {
   return role === "CAPTAIN" || role === "LOGISTICS";
 }
@@ -164,6 +160,27 @@ export function canEditPracticeAttendance(role: RoleName): boolean {
   return role === "CAPTAIN";
 }
 
+export type PracticeKind = "PRACTICE" | "PROPS_DAY";
+
+/** Captains create either kind; Production chairs only create PROPS_DAY
+ * (props days are their event to run) — everyone else has no create access,
+ * matching Practice's original Captain-only create rule. */
+export function canCreatePractice(role: RoleName, kind: PracticeKind): boolean {
+  if (role === "CAPTAIN") return true;
+  if (role === "PRODUCTION") return kind === "PROPS_DAY";
+  return false;
+}
+
+/** Per-dancer RSVP breakdown (name, response, decline reason) — Captain sees
+ * it on every session; Production only sees it on PROPS_DAY sessions (the
+ * ones they run), not on regular practices. Everyone still sees the
+ * aggregate yes/no count regardless (see routes/practices.ts's summarize). */
+export function canViewPracticeDetail(role: RoleName, kind: PracticeKind): boolean {
+  if (role === "CAPTAIN") return true;
+  if (role === "PRODUCTION") return kind === "PROPS_DAY";
+  return false;
+}
+
 export function canPostAnnouncement(role: RoleName, audienceRole: RoleName | null): boolean {
   if (role === "CAPTAIN") return true;
   if (role === "FINANCE" || role === "PRODUCTION" || role === "LOGISTICS") {
@@ -208,6 +225,7 @@ export interface Capabilities {
   calendar: { canEditAny: boolean; editableCategory: RoleName | null };
   attendance: { canEditAny: boolean; editableCategory: RoleName | null };
   practiceAttendance: { canManageAny: boolean };
+  practices: { canCreatePractice: boolean; canCreatePropsDay: boolean };
   announcements: { canPostTeamWide: boolean; ownChannelRole: RoleName | null };
   videos: { canUpload: true };
   practicePlanner: { canAccess: boolean };
@@ -225,7 +243,6 @@ export interface Capabilities {
   fines: { canViewAny: boolean; canManageAny: boolean };
   quotas: { canViewAny: boolean; canManageAny: boolean };
   fundraising: { canViewAny: boolean; canManageAny: boolean };
-  fineSchedule: { canViewAny: boolean; canManageAny: boolean };
   compApplications: { canAccess: boolean };
   competitionDashboard: { editableSection: CompSection | "ALL" | null; canViewSchedule: boolean };
   teamInfo: { canEdit: boolean };
@@ -243,6 +260,10 @@ export function buildCapabilities(role: RoleName): Capabilities {
     calendar: { canEditAny: role === "CAPTAIN", editableCategory },
     attendance: { canEditAny: role === "CAPTAIN", editableCategory: role === "PRODUCTION" ? "PRODUCTION" : editableCategory },
     practiceAttendance: { canManageAny: canEditPracticeAttendance(role) },
+    practices: {
+      canCreatePractice: canCreatePractice(role, "PRACTICE"),
+      canCreatePropsDay: canCreatePractice(role, "PROPS_DAY"),
+    },
     announcements: { canPostTeamWide: role === "CAPTAIN", ownChannelRole },
     videos: { canUpload: true },
     practicePlanner: { canAccess: canAccessPracticePlanner(role) },
@@ -252,7 +273,6 @@ export function buildCapabilities(role: RoleName): Capabilities {
     fines: { canViewAny: isBoardRole(role), canManageAny: canManageFines(role) },
     quotas: { canViewAny: isBoardRole(role), canManageAny: canManageQuotas(role) },
     fundraising: { canViewAny: isBoardRole(role), canManageAny: canManageFundraising(role) },
-    fineSchedule: { canViewAny: isBoardRole(role), canManageAny: canManageFineSchedule(role) },
     compApplications: { canAccess: canAccessCompApplications(role) },
     competitionDashboard: { editableSection: editableCompSection(role), canViewSchedule: true },
     teamInfo: { canEdit: canEditTeamInfo(role) },

@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum TeamTab: String, CaseIterable, Identifiable {
-    case operations, finance, production, team
+    case operations, finance, production, logistics, team
     var id: String { rawValue }
 
     var title: String {
@@ -9,6 +9,7 @@ enum TeamTab: String, CaseIterable, Identifiable {
         case .operations: return "Operations"
         case .finance: return "Finance"
         case .production: return "Production"
+        case .logistics: return "Logistics"
         case .team: return "Team"
         }
     }
@@ -21,10 +22,10 @@ enum TeamTab: String, CaseIterable, Identifiable {
 /// render, rather than showing a locked placeholder.
 ///
 /// This is the one tab with its own NavigationStack; the other three stay
-/// flat. Sub-tabs (Operations/Finance/Production/Team) mirror RoundupView's
-/// segmented-picker pattern — the old single List with 4 Sections is now 4
-/// per-tab Lists (Finance instead renders a second, nested segmented picker
-/// of its own — Fundraising/Quotas/Fines — see FinanceTabView).
+/// flat. Sub-tabs (Operations/Finance/Production/Logistics/Team) mirror
+/// RoundupView's segmented-picker pattern — the old single List with 4
+/// Sections is now 5 per-tab Lists (Finance instead renders a second, nested
+/// segmented picker of its own — Fundraising/Quotas/Fines — see FinanceTabView).
 struct TeamView: View {
     @EnvironmentObject private var appState: AppState
     @State private var tab: TeamTab = .operations
@@ -44,6 +45,7 @@ struct TeamView: View {
                     case .operations: operationsList
                     case .finance: FinanceTabView()
                     case .production: productionList
+                    case .logistics: logisticsList
                     case .team: teamList
                     }
                 }
@@ -78,7 +80,11 @@ struct TeamView: View {
                     MenuRow(icon: "tshirt.fill", title: "Props & Costumes", subtitle: "Tasks, sizing, rentals, status")
                 }
             }
+        }
+    }
 
+    private var logisticsList: some View {
+        List {
             if appState.capabilities?.compApplications.canAccess == true {
                 NavigationLink {
                     CompApplicationsView()

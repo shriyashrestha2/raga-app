@@ -128,11 +128,10 @@ final class APIClient {
     }
 
     @discardableResult
-    func createUpdate(tag: UpdateTag, content: String, pinned: Bool, visibleToRoles: [Role], userId: String) async throws -> UpdateItem {
+    func createUpdate(tag: UpdateTag, content: String, visibleToRoles: [Role], userId: String) async throws -> UpdateItem {
         let body: [String: Any] = [
             "tag": tag.rawValue,
             "content": content,
-            "pinned": pinned,
             "visibleToRoles": visibleToRoles.map(\.rawValue),
         ]
         return try await post("updates", body: body, userId: userId)
@@ -144,6 +143,22 @@ final class APIClient {
 
     func fetchPractices(userId: String) async throws -> [PracticeItem] {
         try await get("practices", userId: userId)
+    }
+
+    /// The create response is just the raw row (id/date/location/focus/kind),
+    /// not the enriched summarized shape `PracticeItem` decodes elsewhere —
+    /// callers reload the full list afterward, so this discards the body.
+    func createPractice(date: Date, location: String, focus: String, reminder: String?, kind: PracticeKind, userId: String) async throws {
+        var body: [String: Any] = [
+            "date": ISO8601DateFormatter().string(from: date),
+            "location": location,
+            "focus": focus,
+            "kind": kind.rawValue,
+        ]
+        if let reminder, !reminder.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            body["reminder"] = reminder
+        }
+        let _: EmptyDecodable = try await post("practices", body: body, userId: userId)
     }
 
     func fetchVideos(set: String, userId: String) async throws -> [VideoItem] {
